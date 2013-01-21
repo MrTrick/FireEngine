@@ -1,5 +1,0 @@
-/**
- * Sample settings.js file. Copy to settings.js and make your own changes
- */
-exports.db =  "http://localhost:5984/workflows";
-

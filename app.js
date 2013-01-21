@@ -23,50 +23,39 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-var settings = require("./settings.js");
-var Activity = require("./lib/Activity.js");
 //-----------------------------------------------------------------------------
+//Application and system modules needed by the application
+var Activity = require("./lib/activity.js");
+var Sanitize = require("./lib/sanitizer.js");
+var bb_couch = require("./lib/bb_couch.js");
+
+var fs = require('fs');
+var Backbone = require("backbone");
+var http = require("http");
+var url = require("url");
+
+//-----------------------------------------------------------------------------
+//Where is everything? Load the site settings
+var CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config/" : "./config.example/");
+var settings = require(CONFIG_PATH + "settings.js");
+var environment = require(CONFIG_PATH + "environment.js");
+
 //Load all designs on start-up
 //(This is partly because designs are modules, asynchronous 'require' calls
 // can be complex, and `always` will restart the server if a design changes)
-var sanitize = require('./lib/sanitizer.js');
 var designs = {};
-require("fs").readdirSync("./designs").forEach(function(file) {
+fs.readdirSync(CONFIG_PATH + "designs/").forEach(function(file) {
 	if (file.match(/\.js$/)) {
-		var design = sanitize(require("./designs/"+file));
+		var design = Sanitize(require(CONFIG_PATH + "designs/" + file));
 		designs[design.id] = design;
 	}
 });
-//-----------------------------------------------------------------------------
-//Define a Backbone sync function to 'glue' between Backbone and the database
-var Backbone = require("backbone");
-var nano = require("nano");
-var db = nano(settings.db);
 
-Backbone.sync = function(method, model, options) {
-	function handler(err, body, header) {
-		if (err && options.error) options.error(model, err, options);
-		else if (!err && options.success) options.success(body, options);
-	}
-	switch(method) {
-	case 'read': 
-		if (model instanceof Backbone.Model) {
-			if (model.isNew()) throw new Error("Can't load new model");
-			return db.get(model.id, {}, handler);
-		} else {
-			return db.list({include_docs:true}, function(err, body, header) { handler(err, _.pluck(body.rows, 'doc'), header); });
-		}
-	case 'create':
-	case 'update':
-		return db.insert(model.toJSON(), {}, function(err, body, header) { handler(err, {_rev:body.rev, _id:body.id}, header); });
-	default: 
-		throw "Action "+method+" not supported yet";
-	}
-};
+//-----------------------------------------------------------------------------
+//Connect Backbone through to the database
+Backbone.sync = bb_couch.backboneSync(settings.db);
 //-----------------------------------------------------------------------------
 //Build the HTTP server
-var http = require("http");
-var url = require("url");
 http.createServer(function(request, response) {
 	function send(data, code, headers) {
 		var headers = _.extend({'Content-Type': 'application/json'}, headers || {});
