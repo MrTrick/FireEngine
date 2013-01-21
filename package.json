@@ -1,0 +1,23 @@
+{
+  "name": "FireEngine",
+  "version": "0.0.1",
+  "description": "Asynchronous Automatic Workflow/Activity Framework",
+  "main": "app.js",
+  "dependencies": {
+    "JSV": "~4.0.2",
+    "backbone": "~0.9.9",
+    "nano": "~3.3.6",
+    "underscore": "~1.4.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": "",
+  "keywords": [
+    "workflow",
+    "activity"
+  ],
+  "author": "Patrick Barnes",
+  "license": "BSD"
+}
