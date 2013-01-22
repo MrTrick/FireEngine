@@ -34,6 +34,9 @@ var Backbone = require("backbone");
 var http = require("http");
 var url = require("url");
 
+var environment = {}; //TODO: environment should be loaded by a module.
+var context = {}; //TODO: context should be loaded by a module.
+
 //-----------------------------------------------------------------------------
 //Where is everything? Load the site settings
 var CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config/" : "./config.example/");
@@ -47,7 +50,7 @@ var designs = {};
 fs.readdirSync(CONFIG_PATH + "designs/").forEach(function(file) {
 	if (file.match(/\.js$/)) {
 		var design = Sanitize(require(CONFIG_PATH + "designs/" + file));
-		designs[design.id] = design;
+		designs[design.id] = new Activity.Design(design);
 	}
 });
 
@@ -57,12 +60,21 @@ Backbone.sync = bb_couch.backboneSync(settings.db);
 //-----------------------------------------------------------------------------
 //Build the HTTP server
 http.createServer(function(request, response) {
+	var data = '';
+	//-------------------------------------------------------------------------
 	function send(data, code, headers) {
 		var headers = _.extend({'Content-Type': 'application/json'}, headers || {});
 		response.writeHead( typeof code == 'undefined' ? 200 : code, headers);
 		response.write(JSON.stringify(data) + "\n");
 		response.end();
 	}
+	function not_found(msg) { send({ error: msg ? msg : 'Not found'}, 404); }
+	function forbidden(msg) { send({ error: msg ? msg : 'Forbidden'}, 403); }
+	function server_err(msg, error) { 
+		send({ error: msg ? msg : 'Server error'}, 500);
+		if (err) console.error((msg ? msg : 'Server error')+"\n", error);
+	}
+
 	function read_error(something, error) {
 		console.error(error.message, error.request.uri, error.status_code);
 		if (error.status_code == 404) return send({error:error.message}, 404);
@@ -71,171 +83,123 @@ http.createServer(function(request, response) {
 			console.error("SERVER ERROR", error);
 		}
 	}
-	//-------------------------------------------------------------------------
-	//Process and route the request
-	var url_parts = url.parse(request.url);
-	var path = url_parts.pathname = url_parts.pathname.replace(/\/{2,}/,'/').replace(/\/$/,''); //Strip out any extra or trailing slashes
-	console.log("Received a request for ", path);
-	
-	if (path == '') {
-		index();
-	} else if (path == '/activities') {
-		activities_index();
-	} else if (m=/^\/activities\/(\w+)$/.exec(path)) {
-		activities_read(m[1]);
-	} else if (m=/^\/activities\/(\w+)\/fire\/(\w+)$/.exec(path)) {
-		activities_fire(m[1], m[2]);
-	} else if (path == '/designs') {
-		designs_index();
-	} else if (m=/^\/designs\/(\w+)$/.exec(path)) {
-		designs_read(m[1]);
-	} else if (m=/^\/designs\/(\w+)\/create$/.exec(path)) {
-		designs_create(m[1]);
-	} else {
-		not_found();
-	}
 	
 	//-------------------------------------------------------------------------
-	//Request handlers
+	//Request routers
+	var activity_router = {
+		route: function(path) {
+			if (path == '') this.index();
+			else if (m=/^\w+$/.exec(path)) this.read(path);
+			else if (m=/^(\w+)\/fire\/(\w+)$/.exec(path)) this.fire(m[1], m[2]);
+			else not_found();
+		},
+		/**
+		 * Display all activities 
+		 * TODO: Filtering?
+		 */
+		index: function() {
+			console.log("Fetching all activities.");
+			var activities = new Activity.Collection();
+			activities.fetch({error: read_error, success: function() { send(activities.toJSON()); } });
+		},
+		/**
+		 * Display an activity with the given id
+		 */
+		read: function(id) {
+			console.log("Fetching activity '"+id+"'");
+			var activity = new Activity.Model({_id:id});
+			activity.fetch({ 
+				error: read_error,
+				success: function() { send(activity.toJSON());	}
+			});
+		},
+		/**
+		 * Fire the given action on an activity
+		 */
+		fire: function(id, action_id) {
+			console.log("Firing action '"+action_id+"' on activity '"+id+"'");
+			
+			if (request.method != 'POST') return send({error:"Fire request must be POST"}, 405, {Allow: "POST"});
+			var activity = new Activity.Model({_id:id});
+			
+			//(Wait until both dependent events are finished; the POST data has been read and the activity fetched)
+			var whenReady = _.after(2, function() {
+				console.log("Received data and loaded activity; ");
+				
+				var action = activity.action(action_id);
+				if (!action) return not_found("No such action");
+				if (!action.allowed(context)) return forbidden("Action forbidden");
+				
+				//Fire the action - if successful output the activity's new state
+				action.fire(data, context, {
+					error: function(activity, error, options) { server_err("Could not update activity"); },
+					success: function() {
+						console.log("Successfully created. New state", activity.get('state'));
+						send(activity.toJSON());
+					}
+				});	
+			});
+			waitForPost(whenReady); //Wait until the POST data is received
+			activity.fetch({error: read_error, success: whenReady}); //And the activity is fetched ) 
+		}
+	};
 	
-	/**
-	 * Display all activities 
-	 * TODO: Filtering?
-	 */
-	function activities_index() {
-		console.log("Fetching all activities.");
-		var activities = new Activity.Collection();
-		activities.fetch({
-			error: read_error,
-			success: function() { send(activities.toJSON()); }
-		});
-	}
-	/**
-	 * Display an activity with the given id
-	 */
-	function activities_read(id) {
-		console.log("Fetching activity '"+id+"'");
-		var activity = new Activity.Model({_id:id});
-		activity.fetch({ 
-			error: read_error,
-			success: function() { send(activity.toJSON());	}
-		});
-	}
-	/**
-	 * Fire the given action on an activity
-	 */
-	function activities_fire(id, action_id) {
-		console.log("Firing action '"+action_id+"' on activity '"+id+"'");
-		if (request.method != 'POST') return send({error:"Fire request must be POST"}, 405, {Allow: "POST"});
-		
-		var context = {}; //TODO! Load at request handling level
-		var activity = new Activity.Model({_id:id});
-		var data = '';
-		
-		//(Has to be called twice to run - waits until *both* the POST data has been read and the activity fetched) 
-		var whenReady = _.after(2, function() {
-			console.log("Received data and loaded activity; ");
+	var design_router = {
+		route: function(path) {
+			if (path == '') this.index();
+			else if (m=/^\w+$/.exec(path)) this.read(path);
+			else if (m=/^(\w+)\/fire\/create$/.exec(path)) this.create(m[1]); //For now, just the 'create' option
+			else not_found();
+		},	
+		/**
+		 * Display all available designs
+		 * TODO: Filtering? 
+		 * TODO: Use a real collection for sanity checking? (or a design 'loader'?)
+		 */
+		index: function() {
+			console.log("Fetching all designs.");
+			send(_.values(designs));
+		},
+		/**
+		 * Display a design with the given id
+		 * TODO: Use a real collection for sanity checking? (or a design 'loader'?) 
+		 */
+		read: function(id) {
+			console.log("Fetching design '"+id+"'");
+			if (!_.has(designs, id)) not_found();
+			else send(designs[id]);
+		},
+		/**
+		 * Create a new activity from the given design
+		 */
+		create: function(id) {
+			console.log("Creating new activity from design '"+id+"'");
+			var design = designs[id];
+			if (!design) return not_found();
+			var create = design.action('create');
+			if (!create) return server_err("Design error - no create action");
+			if (!create.allowed(context)) return forbidden("Create not permitted");
 			
-			var action = activity.actions().get(action_id);
-			if (!action) return send({error:"No such action"}, 404);
-			if (!action.allowed(context)) return send({error:"Action forbidden"}, 403);
-			try { data = JSON.parse(data); }
-			catch(e) { return send({error:"Data must be valid JSON"}, 403); }
-			
-			//Fire the action - if successful output the activity's new state
-			action.fire(data, context, {
-				error: function(activity, error, options) { 
-					send({error:"Could not update activity", error_detail:error}, 500); 
-				},
-				success: function() {
-					console.log("Successfully created. New state", activity.get('state'));
-					send(activity.toJSON());
-				}
-			});	
-		});
-		
-		//Read in the data
-		request.on('data', function (chunk) { 
-			data += chunk; 
-			if (data.length > 1e6) {
-				send({error:"Too much data"}, 413); //Sanity check - prevent killing the server with too much data 
-				request.connection.destroy();
-			}
-		});
-		request.on('end', whenReady);
-		
-		//Fetch the activity
-		activity.fetch({
-			error: read_error,
-			success: whenReady
-		}); 
-	}
-	/**
-	 * Display all available designs
-	 * TODO: Filtering? 
-	 * TODO: Use a real collection for sanity checking? (or a design 'loader'?)
-	 */
-	function designs_index() {
-		console.log("Fetching all designs.");
-		send(_.values(designs));
-	}
-	/**
-	 * Display a design with the given id
-	 * TODO: Use a real collection for sanity checking? (or a design 'loader'?) 
-	 */
-	function designs_read(id) {
-		console.log("Fetching design '"+id+"'");
-		if (!_.has(designs, id)) send({error:"Not found"}, 404);
-		else send(designs[id]);
-	}
-	/**
-	 * Create a new activity from the given design
-	 */
-	function designs_create(id) {
-		console.log("Creating new activity from design '"+id+"'");
-		if (!designs[id]) return send({error:"Not found"}, 404);
-		var design = designs[id];
-
-		if (request.method != 'POST') return send({error:"Fire request must be POST"}, 405, {Allow: "POST"});
-		 
-		//Read in the data
-		var data = '';
-		request.on('data', function (chunk) { 
-			data += chunk; 
-			if (data.length > 1e6) {
-				send({error:"Too much data"}, 413); //Sanity check - prevent killing the server with too much data 
-				request.connection.destroy();
-			}
-		});
-		request.on('end', function() {
-			try { data = JSON.parse(data); }
-			catch(e) { return send({error:"Data must be valid JSON"}, 403); }
-			
-			var context = {};
-			
-			//Create an empty new activity of that design
-			var activity = new Activity.Model({
-				design: design,
-				history:[],
-				state:[]
+			if (request.method != 'POST') return send({error:"Fire request must be POST"}, 405, {Allow: "POST"});
+			 
+			//Wait for the data to be received
+			waitForPost(function() {
+				//Create an empty new activity of that design, and store in the action
+				var activity = new Activity.Model({design: design.attributes});
+				create.activity = activity;
+				
+				//Fire the create action - if successful output the newly-created activity
+				create.fire(data, context, {
+					error: function(activity, error, options) { server_err("Could not create activity", err); }, 
+					success: function() {
+						console.log("Successfully created. ID:", activity.id, "State:", activity.get('state'));
+						send(activity.toJSON());
+					}
+				});
 			});
-			console.log(design);
-			if (!design.create) return send({error:"Design error - no create action"}, 500);
-			var create = new Activity.Action(design.create, {activity:activity});
-			if (!create.allowed(context)) return send({error:"Create not permitted"}, 403);
-			
-			//Fire the create action - if successful output the newly-created activity
-			create.fire(data, context, {
-				error: function(activity, error, options) { 
-					send({error:"Could not create activity", error_detail:error}, 500); 
-				},
-				success: function() {
-					console.log("Successfully created. ID:", activity.id, "State:", activity.get('state'));
-					send(activity.toJSON());
-				}
-			});
-		});
-	}
+		}
+	};
+	
 	/**
 	 * Top-level handler. Returns human-readable (ish) reflective API information 
 	 */
@@ -251,16 +215,39 @@ http.createServer(function(request, response) {
 				"POST /activities/:id/fire/:action" : "Fire an action on the activity with the given POST data, and return the updated activity",
 				"GET /designs" : "Fetch available designs",
 				"GET /designs/:design" : "Fetch a design",
-				"POST /designs/:design/create" : "Create a new activity of that design with the given POST data, and return the new activity"
+				"POST /designs/:design/fire/create" : "Create a new activity of that design with the given POST data, and return the new activity"
 			}
 		});
 	}
-	/**
-	 * Simple 404 page 
-	 */
-	function not_found() {
-		send({ error: 'Not found'}, 404);
+	
+	//-------------------------------------------------------------------------
+	//Start collecting the request data
+	function waitForPost(callback) {
+		request.on('data', function (chunk) { 
+			data += chunk; 
+			if (data.length > 1e6) {
+				send({error:"Too much data"}, 413); //Sanity check - prevent killing the server with too much data 
+				request.connection.destroy();
+			}
+		});
+		request.on('end', function() {
+			if (data == '') data = {};
+			else try { data = JSON.parse(data); }
+			catch(e) { return forbidden("Data must be valid JSON"); }
+			
+			callback();
+		});
 	}
+	
+	//Process and route the request
+	var url_parts = url.parse(request.url);
+	var path = url_parts.pathname = url_parts.pathname.replace(/\/{2,}/,'/').replace(/\/$/,''); //Strip out any extra or trailing slashes
+	console.log("Received a request for '"+path+"'");
+	
+	if (path == '') index();
+	else if (m=/^\/activities\/?(.*)$/.exec(path)) activity_router.route(m[1]);
+	else if (m=/^\/designs\/?(.*)$/.exec(path)) design_router.route(m[1]);
+	else not_found();
 }).listen(8000);
 //-----------------------------------------------------------------------------
 console.log("Server listening on port 8000...");
