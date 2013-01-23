@@ -1,4 +1,6 @@
 /*
+ * FireEngine - Javascript Activity Engine 
+ * 
  * @license Simplified BSD
  * Copyright (c) 2013, Patrick Barnes
  * All rights reserved.
@@ -23,6 +25,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/**
+ * Main node application file;
+ * 
+ * - Loads the system configuration, environment, and designs
+ * - Connects to the couchdb backend
+ * - Starts listening for HTTP connections
+ * - On connection
+ *   - Routes to the appropriate handler (as per API)
+ *   - Processes the request and responds to the caller
+ */
+
 //-----------------------------------------------------------------------------
 //Application and system modules needed by the application
 var Activity = require("./lib/activity.js");
@@ -34,14 +48,17 @@ var Backbone = require("backbone");
 var http = require("http");
 var url = require("url");
 
-var environment = {}; //TODO: environment should be loaded by a module.
-var context = {}; //TODO: context should be loaded by a module.
-
 //-----------------------------------------------------------------------------
 //Where is everything? Load the site settings
+
+//Look at the FE_CONFIG_PATH environment variable for the location.
+//By default, look in the 'config' subfolder. Or the 'config.example' subfolder, if 'config' is not defined.
 var CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config/" : "./config.example/");
+
 var settings = require(CONFIG_PATH + "settings.js");
 var environment = require(CONFIG_PATH + "environment.js");
+var contextBuilder = require(CONFIG_PATH + "context.js");
+if (typeof contextBuilder != 'function') throw("context.js must export a function");
 
 //Load all designs on start-up
 //(This is partly because designs are modules, asynchronous 'require' calls
@@ -125,8 +142,8 @@ http.createServer(function(request, response) {
 			//(Wait until both dependent events are finished; the POST data has been read and the activity fetched)
 			var whenReady = _.after(2, function() {
 				console.log("Received data and loaded activity; ");
-				
 				var action = activity.action(action_id);
+				var context = _.extend({}, environment, contextBuilder(request, data, action));
 				if (!action) return not_found("No such action");
 				if (!action.allowed(context)) return forbidden("Action forbidden");
 				
@@ -173,23 +190,25 @@ http.createServer(function(request, response) {
 		 * Create a new activity from the given design
 		 */
 		create: function(id) {
+			if (request.method != 'POST') return send({error:"Fire request must be POST"}, 405, {Allow: "POST"});
 			console.log("Creating new activity from design '"+id+"'");
+			
 			var design = designs[id];
 			if (!design) return not_found();
-			var create = design.action('create');
-			if (!create) return server_err("Design error - no create action");
-			if (!create.allowed(context)) return forbidden("Create not permitted");
-			
-			if (request.method != 'POST') return send({error:"Fire request must be POST"}, 405, {Allow: "POST"});
+			var action = design.action('create');
+			if (!action) return server_err("Design error - no create action");
 			 
 			//Wait for the data to be received
 			waitForPost(function() {
 				//Create an empty new activity of that design, and store in the action
 				var activity = new Activity.Model({design: design.attributes});
-				create.activity = activity;
+				action.activity = activity;
+				var context = _.extend({}, environment, contextBuilder(request, data, action));
+				
+				if (!action.allowed(context)) return forbidden("Create not permitted");
 				
 				//Fire the create action - if successful output the newly-created activity
-				create.fire(data, context, {
+				action.fire(data, context, {
 					error: function(activity, error, options) { server_err("Could not create activity", err); }, 
 					success: function() {
 						console.log("Successfully created. ID:", activity.id, "State:", activity.get('state'));
