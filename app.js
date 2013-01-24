@@ -72,8 +72,8 @@ fs.readdirSync(CONFIG_PATH + "designs/").forEach(function(file) {
 });
 
 //-----------------------------------------------------------------------------
-//Connect Backbone through to the database
-Backbone.sync = bb_couch.backboneSync(settings.db);
+//Have Activities use the configured sync function 
+Activity.Model.prototype.sync = Activity.Collection.prototype.sync = bb_couch.backboneSync(settings.db);
 //-----------------------------------------------------------------------------
 //Build the HTTP server
 http.createServer(function(request, response) {
@@ -81,24 +81,14 @@ http.createServer(function(request, response) {
 	//-------------------------------------------------------------------------
 	function send(data, code, headers) {
 		var headers = _.extend({'Content-Type': 'application/json'}, headers || {});
-		response.writeHead( typeof code == 'undefined' ? 200 : code, headers);
+		response.writeHead( code || 200, headers);
 		response.write(JSON.stringify(data) + "\n");
 		response.end();
 	}
-	function not_found(msg) { send({ error: msg ? msg : 'Not found'}, 404); }
-	function forbidden(msg) { send({ error: msg ? msg : 'Forbidden'}, 403); }
-	function server_err(msg, error) { 
-		send({ error: msg ? msg : 'Server error'}, 500);
-		if (err) console.error((msg ? msg : 'Server error')+"\n", error);
-	}
-
-	function read_error(something, error) {
-		console.error(error.message, error.request.uri, error.status_code);
-		if (error.status_code == 404) return send({error:error.message}, 404);
-		else {
-			send({error: "Server error"}, 500);
-			console.error("SERVER ERROR", error);
-		}
+	function send_error(message, detail, code, headers) {
+		var error = {message: message || 'Server error', code: code || 500};
+		if (detail) error.detail = detail;
+		send({error: error}, code || 500, headers);
 	}
 	
 	//-------------------------------------------------------------------------
@@ -108,7 +98,7 @@ http.createServer(function(request, response) {
 			if (path == '') this.index();
 			else if (m=/^\w+$/.exec(path)) this.read(path);
 			else if (m=/^(\w+)\/fire\/(\w+)$/.exec(path)) this.fire(m[1], m[2]);
-			else not_found();
+			else send_error("Not found", url_parts.pathname, 404);
 		},
 		/**
 		 * Display all activities 
@@ -117,7 +107,7 @@ http.createServer(function(request, response) {
 		index: function() {
 			console.log("Fetching all activities.");
 			var activities = new Activity.Collection();
-			activities.fetch({error: read_error, success: function() { send(activities.toJSON()); } });
+			activities.fetch({error: this.sync_error, success: function() { send(activities.toJSON()); } });
 		},
 		/**
 		 * Display an activity with the given id
@@ -126,7 +116,7 @@ http.createServer(function(request, response) {
 			console.log("Fetching activity '"+id+"'");
 			var activity = new Activity.Model({_id:id});
 			activity.fetch({ 
-				error: read_error,
+				error: this.sync_error,
 				success: function() { send(activity.toJSON());	}
 			});
 		},
@@ -136,7 +126,7 @@ http.createServer(function(request, response) {
 		fire: function(id, action_id) {
 			console.log("Firing action '"+action_id+"' on activity '"+id+"'");
 			
-			if (request.method != 'POST') return send({error:"Fire request must be POST"}, 405, {Allow: "POST"});
+			if (request.method != 'POST') return send_error("Fire request must be POST", null, 405, {Allow: "POST"});
 			var activity = new Activity.Model({_id:id});
 			
 			//(Wait until both dependent events are finished; the POST data has been read and the activity fetched)
@@ -144,12 +134,18 @@ http.createServer(function(request, response) {
 				console.log("Received data and loaded activity; ");
 				var action = activity.action(action_id);
 				var context = _.extend({}, environment, contextBuilder(request, data, action));
-				if (!action) return not_found("No such action");
-				if (!action.allowed(context)) return forbidden("Action forbidden");
-				
+				if (!action) return send_error("No such action", {id: id, action_id: action_id}, 404);
+				console.log("Activity state: ", activity.get('state'));
+				console.log("Action: ", action.attributes);
+				if (!action.allowed(context)) return send_error("Action forbidden",  {id: id, action_id: action_id}, 403);
+								
 				//Fire the action - if successful output the activity's new state
 				action.fire(data, context, {
-					error: function(activity, error, options) { server_err("Could not update activity"); },
+					error: function(activity, error, options) { 
+						send_error("Could not update activity"+(error.message?": "+error.message:''), error.detail || error , error.status_code || 500);
+						console.error("Could not update activity");
+						console.error(error);
+					},
 					success: function() {
 						console.log("Successfully created. New state", activity.get('state'));
 						send(activity.toJSON());
@@ -157,7 +153,15 @@ http.createServer(function(request, response) {
 				});	
 			});
 			waitForPost(whenReady); //Wait until the POST data is received
-			activity.fetch({error: read_error, success: whenReady}); //And the activity is fetched ) 
+			activity.fetch({error: this.sync_error, success: whenReady}); //And the activity is fetched ) 
+		},
+		/**
+		 * Called when an activity sync fails 
+		 */
+		sync_error: function(m_or_c, error) {
+			send_error(error.message, error, error.status_code); //TODO: Send less detail than the whole error
+			console.error(error.message, error.request.uri, error.status_code);
+			console.error(error);
 		}
 	};
 	
@@ -166,7 +170,7 @@ http.createServer(function(request, response) {
 			if (path == '') this.index();
 			else if (m=/^\w+$/.exec(path)) this.read(path);
 			else if (m=/^(\w+)\/fire\/create$/.exec(path)) this.create(m[1]); //For now, just the 'create' option
-			else not_found();
+			else send_error("Not found", url_parts.pathname, 404);
 		},	
 		/**
 		 * Display all available designs
@@ -183,7 +187,7 @@ http.createServer(function(request, response) {
 		 */
 		read: function(id) {
 			console.log("Fetching design '"+id+"'");
-			if (!_.has(designs, id)) not_found();
+			if (!_.has(designs, id)) send_error("Not found", {id: id}, 404);
 			else send(designs[id]);
 		},
 		/**
@@ -194,9 +198,9 @@ http.createServer(function(request, response) {
 			console.log("Creating new activity from design '"+id+"'");
 			
 			var design = designs[id];
-			if (!design) return not_found();
+			if (!design) return send_error("Not found", {id: id}, 404);
 			var action = design.action('create');
-			if (!action) return server_err("Design error - no create action");
+			if (!action) return send_error("Design error - no create action", {id:id}, 500);
 			 
 			//Wait for the data to be received
 			waitForPost(function() {
@@ -204,12 +208,15 @@ http.createServer(function(request, response) {
 				var activity = new Activity.Model({design: design.attributes});
 				action.activity = activity;
 				var context = _.extend({}, environment, contextBuilder(request, data, action));
-				
-				if (!action.allowed(context)) return forbidden("Create not permitted");
+				if (!action.allowed(context)) return send_error("Create forbidden", {id:id}, 403);;
 				
 				//Fire the create action - if successful output the newly-created activity
 				action.fire(data, context, {
-					error: function(activity, error, options) { server_err("Could not create activity", err); }, 
+					error: function(activity, error, options) { 
+						send_error("Could not create activity"+(error.message?": "+error.message:''), error.detail || error , error.status_code || 500);
+						console.error("Could not create activity");
+						console.error(error);
+					}, 
 					success: function() {
 						console.log("Successfully created. ID:", activity.id, "State:", activity.get('state'));
 						send(activity.toJSON());
@@ -245,14 +252,14 @@ http.createServer(function(request, response) {
 		request.on('data', function (chunk) { 
 			data += chunk; 
 			if (data.length > 1e6) {
-				send({error:"Too much data"}, 413); //Sanity check - prevent killing the server with too much data 
+				send_error("Too much data", null, 413); //Sanity check - prevent killing the server with too much data 
 				request.connection.destroy();
 			}
 		});
 		request.on('end', function() {
 			if (data == '') data = {};
 			else try { data = JSON.parse(data); }
-			catch(e) { return forbidden("Data must be valid JSON"); }
+			catch(e) { return send_error("Request data must be valid JSON", null, 403); }
 			
 			callback();
 		});
@@ -266,7 +273,7 @@ http.createServer(function(request, response) {
 	if (path == '') index();
 	else if (m=/^\/activities\/?(.*)$/.exec(path)) activity_router.route(m[1]);
 	else if (m=/^\/designs\/?(.*)$/.exec(path)) design_router.route(m[1]);
-	else not_found();
-}).listen(8000);
+	else send_error("Not found", path, 404);
+}).listen(settings.serverport);
 //-----------------------------------------------------------------------------
-console.log("Server listening on port 8000...");
+console.log("Server listening on port "+settings.serverport+"...");
