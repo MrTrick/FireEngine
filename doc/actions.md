@@ -1,6 +1,6 @@
 # Action
 
-1. Activities are modified by Actions. Activities are *only* modified by actions.
+1. Activities are modified by Actions. Activities are *only* modified by Actions.
 2. To execute an Action is to `fire` it.
 3. Actions follow a simple process;
    * On the client: Firing an action
@@ -17,6 +17,12 @@
    * Make modifications to external systems, as far as allowed by the Action `context`.
 5. Actions may be fired by other Actions.
 6. Actions may be fired by an automatic process, according to `when`.
+
+7. Actions are stored within the Activity `design.actions` state
+8. A special `create` Action that operates on a new blank activity is stored at `design.create`.
+    * Every Activity is required to have a `create` Action.   
+
+
 -----------------------------------------------------------------------------------------   
 ## Structure
 
@@ -29,15 +35,16 @@ An Action is encoded as an object containing;
  * [allowed](#action.allowed_handler)
  * [prepare](#action.prepare_handler)
  * [fire](#action.fire_handler)
+ * when : TODO
  
 The Action may contain other properties. 
 
-### id ### {#action.id}
+### id {#action.id} ### 
 * The Action's unique identifier.
 * Type: String, `[a-z0-9_]+`
 * Required.
 
-### name ### {#action.name}
+### name ### {#action.name}    
 * The human-readable name of the Action, used for display.
 * Type: String.
 * Optional. If omitted, use the pretty-formatted `id` instead.
@@ -68,7 +75,7 @@ The Action may contain other properties.
 * Function. Executes within the configured [context]{#context}.
 * Allows __additional__ information or confirmation to be provided from the user before firing.
 * Called asynchronously, on client. Calls `this.success( input_data )`
-* On error or cancel?  ...TBD
+* On error or cancel?  ...TODO
 * Optional. If omitted, succeeds immediately with no data.
 
 ### fire ### {#action.fire_handler}

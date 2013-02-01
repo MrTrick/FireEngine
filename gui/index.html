@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+
+    <title>Activity Manager</title>
+
+    <!-- Styling -->
+    <link href="external/bootstrap/css/bootstrap.css" rel="stylesheet">
+    <link href="external/bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
+    <style> body { padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */ } </style>
+    
+    <!-- Javascript -->
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.9.0.min.js"></script>
+    <script type="text/javascript" src="../node_modules/underscore/underscore.js"></script>
+    <script type="text/javascript" src="../node_modules/backbone/backbone.js"></script>
+    <script type="text/javascript" src="../node_modules/markdown/lib/markdown.js"></script>
+    <script type="text/javascript" src="external/backbone.marionette.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    
+    <!-- Application-specific files -->
+    <script type="text/javascript">     
+      _.templateSettings = { interpolate : /\{\{(.+?)\}\}/g }; //Use mustache templates, not ERB-style
+      var App = new Backbone.Marionette.Application();
+      
+      //TODO: move to index.js
+      App.error = {system:function(coll, error, options) { App.main.$el.html("ERROR: "+error.status+" "+error.statusText); }};
+    </script>
+    <script type="text/javascript" src="settings.js"></script>
+    <script type="text/javascript" src="pages/page.index.js"></script>
+    <script type="text/javascript" src="pages/page.view.js"></script>
+    <script type="text/javascript" src="pages/page.prep.js"></script>
+    <script type="text/javascript" src="pages/page.create.js"></script>
+    <script type="text/javascript" src="../lib/activity.js"></script>
+    <script type="text/javascript" src="index.js"></script>
+
+</head>
+<body>
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="brand" href="#">Activity Manager</a>
+        </div>
+      </div>
+    </div>
+    <div id="main" class="container">
+    </div>
+    
+    
+    <!-- <script>
+     $(function() {
+    	 $.ajax('../doc/actions.md').then(function(data){
+    		 $('#main').html( markdown.toHTML(data) );
+    	 });
+     })
+    </script>  -->
+</body>
+</html>
+
+

@@ -6,7 +6,7 @@ require("underscore").extend(exports, {
 	"id":"test_c_v1",
 	"name": "Rename Object (C; External test)",
 	"version": 1,
-	"states": ["submitted", "approved", "denied"],
+	"states": ["submitted", "approved", "denied", "closed"],
 	//Create is a special kind of action. It must be defined, and no actions can have the id 'create'. 
 	"create": {
 		"prep": function() {
@@ -31,17 +31,11 @@ require("underscore").extend(exports, {
 			});
 			if (report.errors.length !== 0) return error( report.errors, 403);
 			
-			//Load the referenced document
+			//Check that the referenced document exists
 			var doc = new MyExternal.Model({_id: data.doc_id});
-			doc.fetch({
-				error: function(doc,errors,options) { 
-					error({message: "MyExternal document '"+data.doc_id+"' not found", detail: errors.message, status_code:404}); 
-				},
-				success: function() {
-					//If the doc exists, great! Save the revision, and customise the saved data    
-					success(_.extend(data, {doc_rev:doc._rev})); 
-				}
-			});
+			doc.fetch()
+			 .on('sync', function() { success( {data:_.extend(data, {doc_rev:doc._rev})} ); })
+			 .on('error', function() { error({message: "MyExternal document '"+data.doc_id+"' not found", detail: errors.message, status_code:404});} );
 		},
 		"to": ["submitted"]
 	},
@@ -50,7 +44,7 @@ require("underscore").extend(exports, {
 	    	"id": "approve",
 	    	"name": "Approve name-change",
 	    	"from" : ["submitted"],
-	    	"to": ["approved"],
+	    	"to": ["approved","closed"],
 	    	"allowed" : function() { return true; /* TODO: This should restrict to particular users. */ },
 	    	"fire" : function() {
 	    		console.log("inside (test_c) "+activity.id+"/approve/fire");
@@ -58,7 +52,8 @@ require("underscore").extend(exports, {
 	    		var name = activity.get('name');
 	    		
 	    		//TODO: Check rev somewhere?
-	    		(new MyExternal.Model({_id: doc_id})).fetch({
+	    		doc = new MyExternal.Model({_id: doc_id});
+				doc.fetch({
 	    			error: function(doc,errors,options) { 
 						error({message: "MyExternal document '"+doc_id+"' not found", detail: errors.message, status_code:404}); 
 					},
@@ -77,7 +72,7 @@ require("underscore").extend(exports, {
 	    	"id": "deny",
 	    	"name": "Approve name-change",
 	    	"from" : ["submitted"],
-	    	"to": ["denied"],
+	    	"to": ["denied","closed"],
         	"allowed" : function() { return true; /* TODO: This should restrict to particular users. */ }
     	}
 	]

@@ -77,12 +77,12 @@ Activity.Model.prototype.sync = Activity.Collection.prototype.sync = bb_couch.ba
 //-----------------------------------------------------------------------------
 //Build the HTTP server
 http.createServer(function(request, response) {
-	var data = '';
+	var input = '';
 	//-------------------------------------------------------------------------
-	function send(data, code, headers) {
+	function send(body, code, headers) {
 		var headers = _.extend({'Content-Type': 'application/json'}, headers || {});
 		response.writeHead( code || 200, headers);
-		response.write(JSON.stringify(data) + "\n");
+		response.write(JSON.stringify(body) + "\n");
 		response.end();
 	}
 	function send_error(message, detail, code, headers) {
@@ -133,14 +133,14 @@ http.createServer(function(request, response) {
 			var whenReady = _.after(2, function() {
 				console.log("Received data and loaded activity; ");
 				var action = activity.action(action_id);
-				var context = _.extend({}, environment, contextBuilder(request, data, action));
+				var context = _.extend({}, environment, contextBuilder(request, input, action));
 				if (!action) return send_error("No such action", {id: id, action_id: action_id}, 404);
 				console.log("Activity state: ", activity.get('state'));
 				console.log("Action: ", action.attributes);
 				if (!action.allowed(context)) return send_error("Action forbidden",  {id: id, action_id: action_id}, 403);
 								
 				//Fire the action - if successful output the activity's new state
-				action.fire(data, context, {
+				action.fire(input, context, {
 					error: function(activity, error, options) { 
 						send_error("Could not update activity"+(error.message?": "+error.message:''), error.detail || error , error.status_code || 500);
 						console.error("Could not update activity");
@@ -207,11 +207,11 @@ http.createServer(function(request, response) {
 				//Create an empty new activity of that design, and store in the action
 				var activity = new Activity.Model({design: design.attributes});
 				action.activity = activity;
-				var context = _.extend({}, environment, contextBuilder(request, data, action));
+				var context = _.extend({}, environment, contextBuilder(request, input, action));
 				if (!action.allowed(context)) return send_error("Create forbidden", {id:id}, 403);;
 				
 				//Fire the create action - if successful output the newly-created activity
-				action.fire(data, context, {
+				action.fire(input, context, {
 					error: function(activity, error, options) { 
 						send_error("Could not create activity"+(error.message?": "+error.message:''), error.detail || error , error.status_code || 500);
 						console.error("Could not create activity");
@@ -250,15 +250,15 @@ http.createServer(function(request, response) {
 	//Start collecting the request data
 	function waitForPost(callback) {
 		request.on('data', function (chunk) { 
-			data += chunk; 
-			if (data.length > 1e6) {
+			input += chunk; 
+			if (input.length > 1e6) {
 				send_error("Too much data", null, 413); //Sanity check - prevent killing the server with too much data 
 				request.connection.destroy();
 			}
 		});
 		request.on('end', function() {
-			if (data == '') data = {};
-			else try { data = JSON.parse(data); }
+			if (input == '') input = {};
+			else try { input = JSON.parse(input); }
 			catch(e) { return send_error("Request data must be valid JSON", null, 403); }
 			
 			callback();
