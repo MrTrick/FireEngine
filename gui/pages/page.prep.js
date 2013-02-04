@@ -11,6 +11,9 @@
 			"<h2>{{ activity.design.name }} : {{ name }} </h2>" +
 			"<div id=\"body\"></div>"
 		),
+		regions: { 
+			body: "#body"
+		},
 		templateHelpers: function() { return {activity:this.model.activity.attributes}; },		
 		initialize: function(options) {
 			console.log("Initializing prep function");
@@ -23,6 +26,11 @@
 			});
 			
 			//Run prep!
+			var oncancel = function() {
+				//TODO:
+			}
+			
+			
 			options.action.prepare(context, {
 				success: function(data) {
 					//Completed - fire the action.

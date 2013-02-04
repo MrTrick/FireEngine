@@ -14,6 +14,7 @@
     
     <!-- Javascript -->
     <script type="text/javascript" src="http://code.jquery.com/jquery-1.9.0.min.js"></script>
+    <script type="text/javascript" src="external/bootstrap/js/bootstrap.js"></script>
     <script type="text/javascript" src="../node_modules/underscore/underscore.js"></script>
     <script type="text/javascript" src="../node_modules/backbone/backbone.js"></script>
     <script type="text/javascript" src="../node_modules/markdown/lib/markdown.js"></script>
@@ -31,6 +32,7 @@
       //TODO: move to index.js
       App.error = {system:function(coll, error, options) { App.main.$el.html("ERROR: "+error.status+" "+error.statusText); }};
     </script>
+    <script type="text/javascript" src="lib/flash.js"></script>
     <script type="text/javascript" src="settings.js"></script>
     <script type="text/javascript" src="pages/page.index.js"></script>
     <script type="text/javascript" src="pages/page.view.js"></script>
@@ -48,6 +50,9 @@
         </div>
       </div>
     </div>
+    <div id="alerts" class="container"> </div>
+    
+    
     <div id="main" class="container">
     </div>
     

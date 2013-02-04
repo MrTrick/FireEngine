@@ -16,7 +16,8 @@ Debug.View = Backbone.View.extend({
 
 
 App.addRegions({
-	main: "#main"
+	main: "#main",
+	alerts: "#alerts"
 });
 
 App.router = new (Backbone.Router.extend({
@@ -34,6 +35,8 @@ App.router = new (Backbone.Router.extend({
 $(function() {
 	App.start(); 
 	Backbone.history.start();
+	
+	App.alerts.show(FlashManager);
 });
 
 
