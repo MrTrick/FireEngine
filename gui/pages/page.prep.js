@@ -26,34 +26,48 @@
 			});
 			
 			//Run prep!
-			var oncancel = function() {
-				//TODO:
-			}
-			
-			
-			options.action.prepare(context, {
-				success: function(data) {
-					//Completed - fire the action.
-					//(send back to the server)
-					action.fire(data)
-					//When finished, go back to the view page
-					.done(function() {
-						//TODO: Bootstrap Notification.
-						console.log("fired!", data);
-						
-						//App.router.navigate('view/'+action.activity.id, {trigger: true});
-						App.router.view(action.activity.id);
-					})
-					//If the action fails, TODO ?					
-					.fail(function(action, err, options) {
-						console.log("error!", arguments);
-					});
-				},
-				//TODO: What else to catch? Cancel? Error?
-				error: function() {
-					console.log("failed to prep", arguments);
-				}
-			});
+			var oncancel = function(msg) {
+				FlashManager.info("Cancelled action '"+action.get('name')+"'. " + msg); 
+				cleanup();
+			};
+			var onerror = function(msg) {
+				FlashManager.error(msg);
+				cleanup();
+			};
+			var oncomplete = function(data) {
+				//Preparation completed - fire the action (back to the server)
+				action.fire(data)
+				.done(function(response) {
+					FlashManager.success("Fired action '"+action.get('name')+"'.");
+					cleanup();
+					
+					//Set the received data back in the activity
+					action.activity.set(response);
+					
+					//Go to the activity view
+					App.router.view(action.activity.id);
+				})
+				.fail(function(jqxhr) {
+					var error;
+					try { error = JSON.parse(jqxhr.responseText).error; } 
+					catch(e) { error = {"message": "Unspecified server error"}; }
+					console.log(error);
+					FlashManager.error("Server Error", error.message);
+					cleanup();
+					
+					//Go back to the previous view (activity, or create)
+					Backbone.history.loadUrl();
+				});
+			};
+			var cleanup = function() {
+				action.off('cancel', oncancel);
+				action.off('error', onerror);
+				action.off('complete', oncomplete);
+			};
+			action.on('cancel', oncancel);
+			action.on('error', onerror);
+			action.on('complete', oncomplete);
+			action.prepare(context);
 		}
 	});
 

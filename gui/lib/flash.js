@@ -62,16 +62,18 @@ var FlashManager = new (Backbone.Marionette.CollectionView.extend({
 		//If called as function(type, msg), use the 2nd arg as message.
 		if (arguments.length == 2) {
 			msg = title;
-			title = type.charAt(0).toUpperCase()+type.substring(1); //ucfirst
+			title = type.charAt(0).toUpperCase() + type.substring(1); //ucfirst
 		}
 		this.collection.add(new this.itemModel({type:type, title:title, message:msg, lifetime:lifetime}));
+		
+		console.log("[FLASH] " + title + ": " + msg);
 	},
 
 	initialize: function() {
 		this.success = _.bind(this.addAlert, this, 'success');
 		this.error = _.bind(this.addAlert, this, 'error');
 		this.info = _.bind(this.addAlert, this, 'info');
-		//TODO: Add support for block?
-		//TODO: Add support for 'warn'?
+		//TODO: Add support for alert-block?
+		//TODO: Add support for 'warning'?
 	}
 }))({collection: new Backbone.Collection()});

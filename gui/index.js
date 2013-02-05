@@ -38,6 +38,3 @@ $(function() {
 	
 	App.alerts.show(FlashManager);
 });
-
-
-// TODO: Reverse proxy to reach the node.js server.

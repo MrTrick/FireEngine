@@ -16,6 +16,9 @@ still needs work... not used yet
 			"items" : { "$ref" : "#/definitions/action" }
 		}
 	},
+	//The 'definitions' property doesn't mean anything here,
+	//but it allows 'sub-schemas' to be stored in one place
+	//and referenced. (instead of repeating them)
 	"definitions" : {
 		"states" : { 
 			"type": "array", 
@@ -27,7 +30,7 @@ still needs work... not used yet
 			//Any other restrictions?
 		},
 		"action" : {
-			"description" : "Schema describing an action"
+			"description" : "Schema describing an action",
 			"type" : "object",
 			"properties" : {
 				"id" : { "type": "string", "pattern": "/^\w+$/", "required": true },
