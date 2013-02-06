@@ -11,10 +11,9 @@ require("underscore").extend(exports, {
 	"create": {
 		"to": "foo",
 		"prep": function() {
-			var context=this;
-			this.bootbox.prompt('Create! But first... Tell me something.', function(result) { 
-    			if (!result) context.error('cancelled'); 
-    			else context.success({created_with_data:result}); 
+			bootbox.prompt('Create! But first... Tell me something.', function(result) { 
+    			if (!result) cancel('User cancelled');
+    			else complete({created_with_data:result}); 
     		});
 		}
 	},
@@ -22,25 +21,26 @@ require("underscore").extend(exports, {
 	    {
 	    	"id": "nop",
 	    	"name": "Do The Nop",
-	    	"prep": function() { 
-	    		this.success({some_field:{contains:'data',even:'objects'}}); 
+	    	"prep": function() {
+	    		complete({some_field:{contains:'data',even:'objects'}}); 
 	    	}
 	    },
 	    {
 	    	"id": "prompt",
 	    	"name": "Add some data",
 	    	"prep": function() {
-	    		var context=this; 
-	    		this.bootbox.prompt('What do you have to say?', function(result) { 
-	    			if (!result) context.error('cancelled'); 
-	    			else context.success({some_text:result}); 
+	    		bootbox.prompt('What do you have to say?', function(result) {
+	    			if (!result) cancel('User cancelled');
+	    			else complete({some_text:result}); 
 	    		});
 	    	},
 	    	"fire": function() {
-	    		var prompted_data = this.activity.get('prompted_data')||[]; 
-	    		prompted_data.push(this.data.some_text); 
-	    		this.activity.set('prompted_data', prompted_data ); 
-	    		this.success();
+	    		if (!inputs.some_text) error("Input must specify 'some_text'");
+	    		
+	    		//Add the given text to the data
+	    		if (!data.prompted) data.prompted = [];
+	    		data.prompted.push(data.some_text);
+	    		complete();
 	    	}
 	    }
 	]

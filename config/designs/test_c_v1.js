@@ -10,7 +10,7 @@ require("underscore").extend(exports, {
 	//Create is a special kind of action. It must be defined, and no actions can have the id 'create'. 
 	"create": {
 		"prep": function() {
-			throw "Not implemented yet - need a GUI first.";
+			error("Not implemented yet - need a GUI first.");
 			/* TODO: Needs to get two things - the object id and the name. 
 			bootbox.prompt('', function(result) { 
     			if (!result) error('cancelled'); 
@@ -20,8 +20,8 @@ require("underscore").extend(exports, {
 		"fire": function() {
 			console.log("inside test_c/create/fire");
 			
-			//Validate the data ; should look like {name:"newname",object:"id"}
-			var report = JSV.validate(data, {
+			//Validate the inputs; should look like {name:"newname",object:"id"}
+			var report = JSV.validate(inputs, {
 				type: "object", 
 				properties: { 
 					name: {type: 'string', required: true}, 
@@ -31,11 +31,14 @@ require("underscore").extend(exports, {
 			});
 			if (report.errors.length !== 0) return error( report.errors, 403);
 			
-			//Check that the referenced document exists
-			var doc = new MyExternal.Model({_id: data.doc_id});
+			//Require that the referenced document exists
+			var doc = new MyExternal.Model({_id: inputs.doc_id});
 			doc.fetch()
-			 .on('sync', function() { success( {data:_.extend(data, {doc_rev:doc._rev})} ); })
-			 .on('error', function() { error({message: "MyExternal document '"+data.doc_id+"' not found", detail: errors.message, status_code:404});} );
+			.on('sync', function() { 
+				 data = _.extend(inputs, {doc_rev:doc._rev}); 
+				 complete();
+			})
+			.on('error', function() { error({message: "MyExternal document '"+data.doc_id+"' not found", detail: errors.message, status_code:404});} );
 		},
 		"to": ["submitted"]
 	},
@@ -48,8 +51,8 @@ require("underscore").extend(exports, {
 	    	"allowed" : function() { return true; /* TODO: This should restrict to particular users. */ },
 	    	"fire" : function() {
 	    		console.log("inside (test_c) "+activity.id+"/approve/fire");
-	    		var doc_id = activity.get('doc_id');
-	    		var name = activity.get('name');
+	    		var doc_id = data.doc_id;
+	    		var name = data.name;
 	    		
 	    		//TODO: Check rev somewhere?
 	    		doc = new MyExternal.Model({_id: doc_id});
@@ -59,7 +62,7 @@ require("underscore").extend(exports, {
 					},
 					success: function(doc) {
 						doc.save({"name":name},{
-							success:function() {success();}, 
+							success:function() {complete();}, 
 							error:function(doc, errors, options) {
 								error({message:"MyExternal document '"+doc_id+"' failed to save", detail: errors.message, status_code:404});
 							}
