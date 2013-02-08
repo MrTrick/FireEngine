@@ -24,14 +24,32 @@
 			template: _.template("<button>{{ name }}</button>"),
 			//Include extra data when rendering; the activity object
 			templateHelpers: function() { return {activity:this.model.activity.attributes}; },
-			events: { "click button": function() { App.main.show(new App.Page.Prep({action:this.model})) }},
+			events: { 
+				"click button": "run"
+			},
+			run: function() { 
+				App.main.show(new App.Page.Prep({action:this.model}));
+			}
 		}),
 		//Display only permitted actions
-		addItemView: function(item, itemView, index) {
-			return item.allowed(App.context)
-				? Backbone.Marionette.CollectionView.prototype.addItemView.call(this, item, itemView, index)
-				: null;
+		showCollection: function(){
+			var that = this;
+			var ItemView;
+			
+			//Add each _permitted_ action.
+			this.collection.each(function(item, index){
+				if (item.allowed(App.context)) {
+					ItemView = that.getItemView(item);
+					that.addItemView(item, ItemView, index);
+			    }
+			});
+			//If nothing in the collection is valid, revert to the empty view.
+			if (this.children.length == 0) { 
+				this.showEmptyView();
+			}
 		},
+		//If empty, then none available
+		emptyView: Backbone.Marionette.ItemView.extend({ tagName: 'li', template: _.template("<em>None available</em>") })
 	});
 	
 	//View: History
@@ -48,6 +66,7 @@
 	App.Page.View = Backbone.Marionette.Layout.extend({
 		template: _.template("<h2>{{ design_name }}</h2>" +
 			"<div id=\"activity\"></div>" +
+			"<h3>Actions</h3>"+
 			"<div id=\"actions\"></div>" +
 			"<h3>History</h3>"+
 			"<div id=\"history\"></div>" +
@@ -55,7 +74,9 @@
 			"<div id=\"debug\"></div>"
 		),
 		//Temporary - gives a valid title even if the model isn't loaded yet
-		templateHelpers: function() { return {design_name: this.model.get('design') ? this.model.get('design').name : 'Loading...' }; },
+		templateHelpers: function() { 
+			return {design_name: this.model.get('design') ? this.model.get('design').name : 'Loading...' }; 
+		},
 		regions: { 
 			main_region: "#activity", 
 			actions_region: "#actions",

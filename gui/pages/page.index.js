@@ -29,7 +29,7 @@
 			activities: "#activities"
 		},
 		initialize: function() {
-			//Fetch all activities
+			//Fetch all activities (when fetched will be caught by the enclosing view)
 			var activities = new Activity.Collection();
 			activities.on('error', App.error.system);
 			activities.fetch();

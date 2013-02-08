@@ -9,7 +9,8 @@
 	App.Page.Prep = Backbone.Marionette.Layout.extend({
 		template: _.template(
 			"<h2>{{ activity.design.name }} : {{ name }} </h2>" +
-			"<div id=\"body\"></div>"
+			"<div id=\"body\"></div>" +
+			"<button id=\"cancel\">Cancel</button>"
 		),
 		regions: { 
 			body: "#body"
@@ -33,7 +34,7 @@
 				'prep:error' : function(msg) {
 					FlashManager.error(msg);
 				},
-				'prep:complete;' : function(data) {
+				'prep:complete' : function(data) {
 					//Preparation completed - fire the action (back to the server)
 					action.fire(data)
 					.done(function(response) {
