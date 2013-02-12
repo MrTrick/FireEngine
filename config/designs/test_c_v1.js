@@ -4,18 +4,39 @@
 if (typeof exports === "undefined") throw "Unexpected context - expected to be called from node.js";
 require("underscore").extend(exports, {
 	"id":"test_c_v1",
-	"name": "Rename Object (C; External test)",
+	"name": "Application: Change Document Name (C; External test)",
 	"version": 1,
 	"states": ["submitted", "approved", "denied", "closed"],
 	//Create is a special kind of action. It must be defined, and no actions can have the id 'create'. 
 	"create": {
-		"prep": function() {
-			error("Not implemented yet - need a GUI first.");
-			/* TODO: Needs to get two things - the object id and the name. 
-			bootbox.prompt('', function(result) { 
-    			if (!result) error('cancelled'); 
-    			else success( { new_namec:result}); 
-    		});*/
+		"prepare": function() {
+			return new (Backbone.Marionette.ItemView.extend({
+				template: _.template(
+					//See http://twitter.github.com/bootstrap/base-css.html#forms
+					'<form>'+
+						'<fieldset>'+
+						    '<legend>Application: Change Document Name</legend>'+
+						    '<label>Name</label>'+
+						    '<input type="text" name="name" placeholder="New document name" required >'+
+						    '<label>Document ID</label>'+
+						    '<input type="text" name="doc_id" placeholder="Document ID" required >'+
+						    '<span class="help-block">This is the id of the doc in the <em>fireengine_testexternal</em> database.</span>'+
+						    '<button type="submit" class="btn">Submit</button>'+
+						    '<button id="cancel" class="btn">Cancel</button>'+
+						'</fieldset>'+
+					'</form>'
+				),
+				events: {
+					'click #cancel' : function() { cancel("Form cancelled"); },
+					'submit' : function(e) {
+						e.preventDefault();
+						console.log("Form submitted");
+						var data = {}; 
+						_.each( this.$("form").serializeArray(), function(el) { data[el.name] = el.value; } );
+						complete(data);
+					}
+				}
+			}))();
 		},
 		"fire": function() {
 			console.log("inside test_c/create/fire");
@@ -29,16 +50,18 @@ require("underscore").extend(exports, {
 				},
 				additionalProperties: false
 			});
-			if (report.errors.length !== 0) return error( report.errors, 403);
+			if (report.errors.length !== 0) return error("Invalid inputs", 403, report.errors);
 			
 			//Require that the referenced document exists
 			var doc = new MyExternal.Model({_id: inputs.doc_id});
+			debugger;
 			doc.fetch()
 			.on('sync', function() { 
 				 data = _.extend(inputs, {doc_rev:doc._rev}); 
 				 complete();
 			})
-			.on('error', function() { error({message: "MyExternal document '"+data.doc_id+"' not found", detail: errors.message, status_code:404});} );
+			.on('error', function() { error({message: "MyExternal document '"+data.doc_id+"' not found", detail: errors.message, status_code:404});} )
+			.on('all', function(event) { console.log("Event on create action", arguments); });
 		},
 		"to": ["submitted"]
 	},

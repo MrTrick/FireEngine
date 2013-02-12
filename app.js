@@ -87,7 +87,7 @@ http.createServer(function(request, response) {
 	}
 	function send_error(error, headers) {
 		send({error: error}, error.code || 500, headers);
-		console.error(error.toString(), request.uri, error.code);
+		console.error(error.toString(), error.code, "for", request.method, request.url);
 		if (error.inner) console.error(error.inner);
 	}
 	
@@ -129,18 +129,7 @@ http.createServer(function(request, response) {
 		fire: function(id, action_id) {
 			console.log("Firing action '"+action_id+"' on activity '"+id+"'");
 			
-			//Read the POST data 
-			if (request.method != 'POST') return send_error(new Activity.Error("Fire request must be POST", 405), {Allow: "POST"});
-			waitForPost(whenReady); //Wait until the POST data is received
-			
-			//Fetch the activity
-			var activity = new Activity.Model({_id:id});
-			activity.fetch({
-				success: whenReady,
-				error: function(activity, error) { send_error(error); }
-			});
-			
-			//After both are ready...
+			//After A and B are ready...
 			var whenReady = _.after(2, function() {
 				console.log("Received data and loaded activity; ");
 				
@@ -159,15 +148,28 @@ http.createServer(function(request, response) {
 								
 				//Fire the action - if successful output the activity's new state
 				action.fire(input, context, {
-					error: function(error) { 
+					timeout: settings.fire_timeout,					
+					error: function(activity, error) { 
 						send_error(error);
 					},
 					success: function() {
-						console.log("Successfully created. New state", activity.get('state'));
+						console.log("Successfully fired. New state", activity.get('state'));
 						send(activity.toJSON());
 					}
 				});	
 			});
+			
+			//A: Read the POST data 
+			if (request.method != 'POST') return send_error(new Activity.Error("Fire request must be POST", 405), {Allow: "POST"});
+			waitForPost(whenReady); //Wait until the POST data is received
+			
+			//B: Fetch the activity
+			var activity = new Activity.Model({_id:id});
+			activity.fetch({
+				success: whenReady,
+				error: function(activity, error) { send_error(error); }
+			});
+
 		}
 	};
 	
@@ -218,6 +220,7 @@ http.createServer(function(request, response) {
 				
 				//Fire the create action - if successful output the newly-created activity
 				action.fire(input, context, {
+					timeout: settings.fire_timeout,
 					error: function(activity, error, options) {
 						send_error(error);
 					}, 

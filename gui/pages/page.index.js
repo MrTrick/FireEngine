@@ -19,10 +19,11 @@
 
 
 	App.Page.Index = Backbone.Marionette.Layout.extend({
-		//TODO: Title?
 		template: _.template(
+			"<h2>Activities</h2>" +
 			"<div id='search'></div>" +
-			"<div id='activities'></div>"
+			"<div id='activities'></div>" +
+			"<p><a href=\"#create\">Create new</a></p>"
 		),
 		regions: {
 			search: "#search",

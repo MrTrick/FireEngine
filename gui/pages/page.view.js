@@ -18,10 +18,10 @@
 	//View: The actions the user can take
 	var Action_List_View = Backbone.Marionette.CollectionView.extend({
 		tagName: 'ul',
-		attributes: {style:'list-style-type:none; margin:0'},
+		attributes: {class: "unstyled"},
 		itemView: Backbone.Marionette.ItemView.extend({
 			tagName: 'li',
-			template: _.template("<button>{{ name }}</button>"),
+			template: _.template("<button class=\"btn\">{{ name }}</button>"),
 			//Include extra data when rendering; the activity object
 			templateHelpers: function() { return {activity:this.model.activity.attributes}; },
 			events: { 
@@ -65,13 +65,17 @@
 	// View a single page
 	App.Page.View = Backbone.Marionette.Layout.extend({
 		template: _.template("<h2>{{ design_name }}</h2>" +
+			"<div id=\"debug_container\">" +
+			"	<a href=\"#\" id=\"debug_toggle\">Debug info</a>" +
+			"	<div style=\"display:none;\" id=\"debug_content\"></div>" +
+			"</div>" +
 			"<div id=\"activity\"></div>" +
 			"<h3>Actions</h3>"+
 			"<div id=\"actions\"></div>" +
 			"<h3>History</h3>"+
 			"<div id=\"history\"></div>" +
-			"<p><a href=\"#\">Back</a></p>" +
-			"<div id=\"debug\"></div>"
+			"<hr>" +
+			"<p><a href=\"#\">Back</a></p>"
 		),
 		//Temporary - gives a valid title even if the model isn't loaded yet
 		templateHelpers: function() { 
@@ -81,14 +85,14 @@
 			main_region: "#activity", 
 			actions_region: "#actions",
 			history_region: "#history",
-			debug: "#debug" 
+			debug: "#debug_content" 
 		},
 		initialize: function(options) {
 			//Fetch the activity with the given id		
 			var id = options.id;
 			var activity = this.model = new Activity.Model({_id:id});
 			activity.on('error', function(model, error, options) {
-				$(this.main.el).html("ERROR: "+error.status+" "+error.statusText); 
+				$(this.main_region.el).html("ERROR: "+error.status+" "+error.statusText); 
 			}, this).on('sync', function() {
 				//Need to re-render after sync, now that the model has loaded
 				this.render();
@@ -103,6 +107,7 @@
 				//Render the history
 				this.history_region.show( new History_View({collection:activity.history()}));
 				
+				$("#debug_toggle,#debug_content").click(function(e) { $("#debug_content").slideToggle(500); e.preventDefault(); });
 				this.debug.show(new Debug.View({model:activity}));
 			}, this).fetch();
 		}

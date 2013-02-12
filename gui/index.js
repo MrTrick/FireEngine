@@ -2,8 +2,8 @@
  * 
  */
 //Configure!
-Activity.Model.prototype.urlRoot = settings.serverUrl + Activity.Model.prototype.urlRoot; 
-Activity.Collection.prototype.url = settings.serverUrl + Activity.Collection.prototype.url; 
+Activity.baseUrl(settings.serverUrl);
+
 
 var Debug = {};
 Debug.View = Backbone.View.extend({
@@ -13,7 +13,6 @@ Debug.View = Backbone.View.extend({
 		this.$el.html( JSON.stringify(object.toJSON ? object.toJSON() : object,null,"\t") );
 	} 
 });
-
 
 App.addRegions({
 	main: "#main",
@@ -30,6 +29,8 @@ App.router = new (Backbone.Router.extend({
 	view: function(id) { App.main.show(new App.Page.View({id:id})); },
 	create: function() { App.main.show(new App.Page.Create()); }
 }))();
+
+
 
 
 $(function() {
