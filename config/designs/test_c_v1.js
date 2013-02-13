@@ -55,13 +55,14 @@ require("underscore").extend(exports, {
 			//Require that the referenced document exists
 			var doc = new MyExternal.Model({_id: inputs.doc_id});
 			debugger;
-			doc.fetch()
-			.on('sync', function() { 
-				 data = _.extend(inputs, {doc_rev:doc._rev}); 
-				 complete();
-			})
-			.on('error', function() { error({message: "MyExternal document '"+data.doc_id+"' not found", detail: errors.message, status_code:404});} )
-			.on('all', function(event) { console.log("Event on create action", arguments); });
+			doc.fetch({
+				'success': function() { 
+					complete({ data:_.extend(inputs, {doc_rev:doc._rev} ) });
+				},
+				'error' : function(doc,errors) { 
+					error({message: "MyExternal document '"+inputs.doc_id+"' not found", code:404, detail: errors});
+				}
+			});
 		},
 		"to": ["submitted"]
 	},
