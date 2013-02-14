@@ -79,15 +79,15 @@ Activity.Model.prototype.sync = Activity.Collection.prototype.sync = bb_couch.ba
 http.createServer(function(request, response) {
 	var input = '';
 	//-------------------------------------------------------------------------
-	function send(body, code, headers) {
+	function send(body, status_code, headers) {
 		var headers = _.extend({'Content-Type': 'application/json'}, headers || {});
-		response.writeHead( code || 200, headers);
+		response.writeHead( status_code || 200, headers);
 		response.write(JSON.stringify(body) + "\n");
 		response.end();
 	}
 	function send_error(error, headers) {
-		send({error: error}, error.code || 500, headers);
-		console.error(error.toString(), error.code, "for", request.method, request.url);
+		send({error: error}, error.status_code || 500, headers);
+		console.error(error, error.status_code, "for", request.method, request.url);
 		if (error.inner) console.error(error.inner);
 	}
 	
@@ -105,7 +105,7 @@ http.createServer(function(request, response) {
 		 * TODO: Filtering?
 		 */
 		index: function() {
-			console.log("Fetching all activities.");
+			console.log("[Route] Fetch all activities");
 			var activities = new Activity.Collection();
 			activities.fetch({
 				success: function(activitites) { send(activities.toJSON()); }, 
@@ -116,7 +116,7 @@ http.createServer(function(request, response) {
 		 * Display an activity with the given id
 		 */
 		read: function(id) {
-			console.log("Fetching activity '"+id+"'");
+			console.log("[Route] Fetch activity '"+id+"'");
 			var activity = new Activity.Model({_id:id});
 			activity.fetch({ 
 				success: function(activity) { send(activity.toJSON()); }, 
@@ -127,17 +127,16 @@ http.createServer(function(request, response) {
 		 * Fire the given action on an activity
 		 */
 		fire: function(id, action_id) {
-			console.log("Firing action '"+action_id+"' on activity '"+id+"'");
+			console.log("[Route] Fire action '"+action_id+"' on activity '"+id+"'");
 			
 			//After A and B are ready...
 			var whenReady = _.after(2, function() {
-				console.log("Received data and loaded activity; ");
+				console.log("[Route] Received data and loaded activity");
 				
 				//Read the action
 				var action = activity.action(action_id);
 				if (!action) return send_error(new Activity.Error("No such action '"+action_id+"'", 404));
-				console.log("Activity state: ", activity.get('state'));
-				console.log("Action: ", action.attributes.id, ": ", action.attributes.name);
+				console.log("[Route] Current State:", activity.get('state'));
 				
 				//Calculate the context for the action
 				//(Current user, libraries, etc)
@@ -153,7 +152,7 @@ http.createServer(function(request, response) {
 						send_error(error);
 					},
 					success: function() {
-						console.log("Successfully fired. New state", activity.get('state'));
+						console.log("[Route] Successfully fired. New state:", activity.get('state'));
 						send(activity.toJSON());
 					}
 				});	
@@ -275,8 +274,8 @@ http.createServer(function(request, response) {
 	//Process and route the request
 	var url_parts = url.parse(request.url);
 	var path = url_parts.pathname = url_parts.pathname.replace(/\/{2,}/,'/').replace(/\/$/,''); //Strip out any extra or trailing slashes
+	console.log("-------------------------------------------------------------------------");
 	console.log("Received a request for '"+path+"'");
-	
 	if (path == '') index();
 	else if (m=/^\/activities\/?(.*)$/.exec(path)) activity_router.route(m[1]);
 	else if (m=/^\/designs\/?(.*)$/.exec(path)) design_router.route(m[1]);

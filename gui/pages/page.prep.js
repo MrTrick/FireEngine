@@ -56,45 +56,55 @@
 			var view = this;
 			var action = this.model = options.action;
 			if (!options.action) throw "Expect to be constructed with an action";
-			var immediate = true;
-			var handlers;
+			var handler_is_async = false, handler_is_view = false;
+			var eventlisteners;
 			
 			//Run prep!
-			action.oncefirst( handlers = {
+			action.oncefirst( eventlisteners = {
 				'prep:cancel' : function(msg) {
 					FlashManager.info("Cancelled action '"+action.get('name')+"'. " + msg);
 					//Go back to the previous view (activity, or create)
-					Backbone.history.loadUrl();					
+					_.defer(function() {Backbone.history.loadUrl(); });					
 				},
 				'prep:error' : function(msg) {
 					FlashManager.error(msg);
-					//And then?
-					alert("Not sure what to do here... after prep error");
+					//Go back to the previous view (activity, or create)
+					_.defer(function() {Backbone.history.loadUrl(); });
 				},
 				'prep:complete' : function(data) {
-					//Disable the body area while we wait for a response
-					view.startLoading();
+					//If handler is a view, disable the body area while we wait for a response
+					if (handler_is_view) view.startLoading();
+					
+					//Remember whether prep was async or not
+					//(As the var will be modified before fire completes)
+					var pre_was_async = handler_is_async;
+					
 					//Preparation completed - fire the action (back to the server)
 					action.fire(data).oncefirst({
-						'fired': function(action) {
+						'fire:complete': function(action) {
 							FlashManager.success("Fired action '"+action.get('name')+"'.");
 							//Go to the activity view
 							//(If a 'create' action, 'action.activity' will be the newly created activity)
-							App.router.view(action.activity.id);
+							Backbone.history.navigate("activities/"+action.activity.id);
+							Backbone.history.loadUrl();
 						},
-						'error': function(error) {
+						'fire:error': function(error) {
 							FlashManager.error("Server Error", error.message, 0);
 							
 							//After an error - if the prepare function returned immediately						
 							//go back to the previous view (activity, or create)
-							//
 							//If it's asynchronous maybe the user entered data, so stay.
-							//
-							//TODO: This isn't very elegant.
-							if (immediate) Backbone.history.loadUrl();
-							else {
-								view.stopLoading();
-								action.oncefirst(handlers);
+							//TODO: This isn't very elegant - need to flag somehow whether user entered data.
+							//Go back
+							if (!pre_was_async) {
+								_.defer(function() {Backbone.history.loadUrl(); });
+							//Stay
+							} else {
+								//Restore the view
+								if (handler_is_view) view.stopLoading();
+								
+								//Re-arm these one-shot listeners 
+								action.oncefirst(eventlisteners);
 							}
 						}
 					});
@@ -104,14 +114,17 @@
 			//Run the prep!			
 			var out = action.prepare(App.context);
 			
-			//If the handler returns a view object, show it in the page 
+			//If prep hasn't already finished, it must be asynchronous.  
+			handler_is_async = true;
+			
+			//If the handler returns a view object, it must be a view. Show it in the layout.
 			if (_.isObject(out) && _.isFunction(out.render)) {
-				//Wait until the outer has rendered.
+				handler_is_view = true;
+				//Wait until the outer has rendered, then show.
 				this.on('render', function() {
 					this.body.show(out);
 				});
 			}
-			immediate = false;
 		}
 	});
 

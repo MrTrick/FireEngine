@@ -11,7 +11,16 @@
 	//View: One activity, stand-alone
 	//TODO: Add read control, and customisation of view from design?
 	var Activity_View = Backbone.Marionette.ItemView.extend({
-		template: _.template("<dt>State</dt><dd>{{ state }}</dd>"),
+		template: _.template("<dt>State</dt><dd>{{ state }}</dd><dt>Data</dt><dd>{{ data }}</dd>"),
+		templateHelpers: function() {
+			rendered_data = [];
+			_.each(this.model.get('data'), function(el, key) { 
+				rendered_data.push("<dt>"+_.escape(key)+"</dt><dd>"+_.escape(JSON.stringify(el))+"</dd>");
+			});
+			return {
+				data: rendered_data.length>0 ? "<dl>"+rendered_data.join("")+"</dl>" : "<i>None</i>"
+			};
+		},
 		tagName: 'dl'
 	});
 	

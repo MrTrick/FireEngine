@@ -21,25 +21,46 @@ require("underscore").extend(exports, {
 	    {
 	    	"id": "nop",
 	    	"name": "Do The Nop",
-	    	"prep": function() {
+	    	"prepare": function() {
 	    		complete({some_field:{contains:'data',even:'objects'}}); 
+	    	},
+	    	"fire" : function() {
+	    		_.extend(data, inputs);
+	    		complete();
 	    	}
 	    },
 	    {
 	    	"id": "prompt",
 	    	"name": "Add some data",
-	    	"prep": function() {
-	    		bootbox.prompt('What do you have to say?', function(result) {
-	    			if (!result) cancel('User cancelled');
-	    			else complete({some_text:result}); 
-	    		});
+	    	"prepare": function() {
+				return new (Backbone.Marionette.ItemView.extend({
+					template: _.template(
+						//See http://twitter.github.com/bootstrap/base-css.html#forms
+						'<form><fieldset>'+
+							    '<legend>Something...</legend>'+
+							    '<input type="text" name="value" placeholder="Value..." required>'+
+							    '<span class="help-block">Type something. Anything but \'frog\'!</span>'+
+							    '<button type="submit" class="btn">Submit</button>'+
+							    '<button id="cancel" class="btn">Cancel</button>'+
+						'</fieldset></form>'
+					),
+					events: {
+						'click #cancel' : function() { cancel("Form cancelled"); },
+						'submit' : function(e) {
+							e.preventDefault();
+							var value = this.$("form input[name=value]").val();
+							if (value.match(/frog/i)) cancel("You wrote frog! How could you?");
+							else complete({some_text:value});
+						}
+					}
+				}))();
 	    	},
 	    	"fire": function() {
 	    		if (!inputs.some_text) error("Input must specify 'some_text'");
 	    		
 	    		//Add the given text to the data
 	    		if (!data.prompted) data.prompted = [];
-	    		data.prompted.push(data.some_text);
+	    		data.prompted.push(inputs.some_text);
 	    		complete();
 	    	}
 	    }

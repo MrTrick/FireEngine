@@ -10,7 +10,7 @@ Debug.View = Backbone.View.extend({
 	tagName:'pre',
 	render:function() {
 		var object = this.model || this.collection;
-		this.$el.html( JSON.stringify(object.toJSON ? object.toJSON() : object,null,"\t") );
+		this.$el.text( JSON.stringify(object.toJSON ? object.toJSON() : object,null,"\t") );
 	} 
 });
 

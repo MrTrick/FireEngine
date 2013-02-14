@@ -56,11 +56,12 @@ require("underscore").extend(exports, {
 			var doc = new MyExternal.Model({_id: inputs.doc_id});
 			debugger;
 			doc.fetch({
-				'success': function() { 
-					complete({ data:_.extend(inputs, {doc_rev:doc._rev} ) });
+				error: function(doc,errors) { 
+					error(_.extend(errors, {message: "MyExternal document '"+inputs.doc_id+"' " + errors.description}));
 				},
-				'error' : function(doc,errors) { 
-					error({message: "MyExternal document '"+inputs.doc_id+"' not found", code:404, detail: errors});
+				success: function() { 
+					console.log("Old name is:", doc.get('name'));
+					complete({ data:_.extend(inputs, {doc_rev:doc.get('_rev'), old_name:doc.get('name')} ) });
 				}
 			});
 		},
@@ -74,6 +75,7 @@ require("underscore").extend(exports, {
 	    	"to": ["approved","closed"],
 	    	"allowed" : function() { return true; /* TODO: This should restrict to particular users. */ },
 	    	"fire" : function() {
+	    		debugger;
 	    		console.log("inside (test_c) "+activity.id+"/approve/fire");
 	    		var doc_id = data.doc_id;
 	    		var name = data.name;
@@ -81,15 +83,15 @@ require("underscore").extend(exports, {
 	    		//TODO: Check rev somewhere?
 	    		doc = new MyExternal.Model({_id: doc_id});
 				doc.fetch({
-	    			error: function(doc,errors,options) { 
-						error({message: "MyExternal document '"+doc_id+"' not found", detail: errors.message, status_code:404}); 
+					error: function(doc,errors) { 
+						error(_.extend(errors, {message: "MyExternal document '"+doc_id+"' " + errors.description}));
 					},
 					success: function(doc) {
 						doc.save({"name":name},{
-							success:function() {complete();}, 
-							error:function(doc, errors, options) {
-								error({message:"MyExternal document '"+doc_id+"' failed to save", detail: errors.message, status_code:404});
-							}
+							error: function(doc, errors) {
+								error(_.extend(errors, {message: "MyExternal document '"+doc_id+" failed to save' " + errors.description}));
+							},							
+							success: function() {complete();} 
 						});
 					}
 	    		});
@@ -97,7 +99,7 @@ require("underscore").extend(exports, {
 	    },
 	    {
 	    	"id": "deny",
-	    	"name": "Approve name-change",
+	    	"name": "Deny name-change",
 	    	"from" : ["submitted"],
 	    	"to": ["denied","closed"],
         	"allowed" : function() { return true; /* TODO: This should restrict to particular users. */ }
