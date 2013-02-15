@@ -2,6 +2,8 @@
 ## Project-specific
 ###################
 node_modules
+config
+gui/settings.js
 
 #################
 ## Eclipse
