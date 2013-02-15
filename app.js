@@ -80,7 +80,10 @@ http.createServer(function(request, response) {
 	var input = '';
 	//-------------------------------------------------------------------------
 	function send(body, status_code, headers) {
-		var headers = _.extend({'Content-Type': 'application/json'}, headers || {});
+		var headers = _.extend({
+			'Content-Type': 'application/json',
+			'Access-Control-Allow-Origin' : '*'
+		}, headers || {});
 		response.writeHead( status_code || 200, headers);
 		response.write(JSON.stringify(body) + "\n");
 		response.end();

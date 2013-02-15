@@ -3,5 +3,5 @@
  */
 
 var settings = {
-	serverUrl: "/fireengine/"
+	serverUrl: "http://yourserver:8000/"
 };
