@@ -3,7 +3,7 @@
  */
 //Configure!
 Activity.baseUrl(settings.serverUrl);
-
+App.context = settings.environment;
 
 var Debug = {};
 Debug.View = Backbone.View.extend({
@@ -29,9 +29,6 @@ App.router = new (Backbone.Router.extend({
 	view: function(id) { App.main.show(new App.Page.View({id:id})); },
 	create: function() { App.main.show(new App.Page.Create()); }
 }))();
-
-
-
 
 $(function() {
 	App.start(); 
