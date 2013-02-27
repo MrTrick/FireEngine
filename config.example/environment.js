@@ -5,6 +5,7 @@ var _ = require('underscore');
 var Backbone = require('backbone');
 var bb_couch = require('../lib/bb_couch.js');
 var settings = require('./settings.js');
+var Activity = require('../lib/activity.js');
 
 //------------------------------------------------------------------
 //What libraries are available to scripts?
@@ -16,7 +17,7 @@ exports.Activity = Activity;
 //------------------------------------------------------------------
 //Define the 'MyExternal' model and collections
 var MyExternal = exports.MyExternal = {};
-var myexternalsync = bb_couch.backboneSync(settings.myexternaldb);
+var myexternalsync = bb_couch(settings.myexternaldb);
 
 MyExternal.Model = Backbone.Model.extend({
 	idAttribute: '_id',

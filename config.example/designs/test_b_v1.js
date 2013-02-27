@@ -9,12 +9,12 @@ require("underscore").extend(exports, {
 	"states": ["foo"],
 	//Create is a special kind of action. It must be defined, and no actions can have the id 'create'. 
 	"create": {
-		"to": "foo",
+		"to": ["foo"],
 		"prep": function() {
 			bootbox.prompt('Create! But first... Tell me something.', function(result) { 
     			if (!result) cancel('User cancelled');
     			else complete({created_with_data:result}); 
-    		});
+    		}); 
 		}
 	},
 	"actions": [

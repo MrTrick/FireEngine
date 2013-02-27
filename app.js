@@ -40,10 +40,10 @@
 //-----------------------------------------------------------------------------
 //Application and system modules needed by the application
 var Activity = require("./lib/activity.js");
-var Sanitize = require("./lib/sanitizer.js");
 var bb_couch = require("./lib/bb_couch.js");
+var design_sync = require("./lib/design_sync.js");
 
-var fs = require('fs');
+var fs = require("fs");
 var Backbone = require("backbone");
 var http = require("http");
 var url = require("url");
@@ -54,26 +54,18 @@ var url = require("url");
 //Look at the FE_CONFIG_PATH environment variable for the location.
 //By default, look in the 'config' subfolder. Or the 'config.example' subfolder, if 'config' is not defined.
 var CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config/" : "./config.example/");
-
+process.env.CONFIG_PATH = CONFIG_PATH;
 var settings = require(CONFIG_PATH + "settings.js");
+
+//Have Activities and designs use the correctly configured sync functions 
+Activity.Model.prototype.sync = Activity.Collection.prototype.sync = bb_couch(settings.db);
+Activity.Design.prototype.sync = Activity.Design.Collection.prototype.sync = design_sync( fs.realpathSync( CONFIG_PATH + "designs" ) );
+
+//Load the handler environment and contexts
 var environment = require(CONFIG_PATH + "environment.js");
 var contextBuilder = require(CONFIG_PATH + "context.js");
 if (typeof contextBuilder != 'function') throw("context.js must export a function");
 
-//Load all designs on start-up
-//(This is partly because designs are modules, asynchronous 'require' calls
-// can be complex, and `always` will restart the server if a design changes)
-var designs = {};
-fs.readdirSync(CONFIG_PATH + "designs/").forEach(function(file) {
-	if (file.match(/\.js$/)) {
-		var design = Sanitize(require(CONFIG_PATH + "designs/" + file));
-		designs[design.id] = new Activity.Design(design);
-	}
-});
-
-//-----------------------------------------------------------------------------
-//Have Activities use the configured sync function 
-Activity.Model.prototype.sync = Activity.Collection.prototype.sync = bb_couch.backboneSync(settings.db);
 //-----------------------------------------------------------------------------
 //Build the HTTP server
 http.createServer(function(request, response) {
@@ -111,7 +103,7 @@ http.createServer(function(request, response) {
 			console.log("[Route] Fetch all activities");
 			var activities = new Activity.Collection();
 			activities.fetch({
-				success: function(activitites) { send(activities.toJSON()); }, 
+				success: function(activities) { send(activities.toJSON()); }, 
 				error: function(activities, error) { send_error(error); }
 			});
 		},
@@ -188,36 +180,44 @@ http.createServer(function(request, response) {
 		 * TODO: Use a real collection for sanity checking? (or a design 'loader'?)
 		 */
 		index: function() {
-			console.log("Fetching all designs.");
-			send(_.values(designs));
+			console.log("[Route] Fetching all designs.");
+			var designs = new Activity.Design.Collection();
+			designs.fetch({
+				success: function(designs) { send(designs.toJSON()); }, 
+				error: function(designs, error) { send_error(error); }
+			});
 		},
 		/**
 		 * Display a design with the given id
 		 * TODO: Use a real collection for sanity checking? (or a design 'loader'?) 
 		 */
 		read: function(id) {
-			console.log("Fetching design '"+id+"'");
-			if (!_.has(designs, id)) send_error(new Activity.Error("Not found", 404, id));
-			else send(designs[id]);
+			console.log("[Route] Fetching design '"+id+"'");
+			var design = new Activity.Design({_id:id});
+			design.fetch({ 
+				success: function(design) { send(design.toJSON()); }, 
+				error: function(design, error) { send_error(error); }
+			});
 		},
 		/**
 		 * Create a new activity from the given design
 		 */
 		create: function(id) {
-			if (request.method != 'POST') return send_error(new Activity.Error("Fire request must be POST", 405), {Allow: "POST"});
-			console.log("Creating new activity from design '"+id+"'");
-			
-			var design = designs[id];
-			if (!design) return send_error(new Activity.Error("Not found", 404, id));
-			var action = design.action('create');
-			if (!action) return send_error(new Activity.Error("Design error - no create action", 500, id));
-			 
-			//Wait for the data to be received
-			waitForPost(function() {
+			console.log("[Route] Creating new activity from design '"+id+"'");
+
+			//After A and B are ready...
+			var whenReady = _.after(2, function() {
+				console.log("[Route] Received data and loaded design");
+				console.log(design);
+				var action = design.action('create');
+				if (!action) return send_error(new Activity.Error("Design error - no create action", 500, id));
+				
 				//Create an empty new activity of that design, and store in the action
 				var activity = new Activity.Model({design: design.attributes});
 				action.activity = activity;
 				var context = _.extend({}, environment, contextBuilder(request, input, action));
+				
+				//Check permissions
 				if (!action.allowed(context)) return send_error(new Activity.Error("Create forbidden", 403, id));
 				
 				//Fire the create action - if successful output the newly-created activity
@@ -231,6 +231,17 @@ http.createServer(function(request, response) {
 						send(activity.toJSON());
 					}
 				});
+			});
+			
+			//A: Read the POST data 
+			if (request.method != 'POST') return send_error(new Activity.Error("Fire request must be POST", 405), {Allow: "POST"});
+			waitForPost(whenReady); //Wait until the POST data is received
+			
+			//B: Fetch the design
+			var design = new Activity.Design({id:id});			
+			design.fetch({
+				success: whenReady,
+				error: function(activity, error) { send_error(error); }
 			});
 		}
 	};

@@ -2,6 +2,7 @@
 ## Project-specific
 ###################
 node_modules
+config_*
 config
 gui/settings.js
 
