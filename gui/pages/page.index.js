@@ -5,16 +5,36 @@
 	if (!App) throw "No App defined";
 	if (!App.Page) App.Page = {};
 	
-	//Collection view - list of activities
-	//TODO: Make this a table
-	var Activity_List = Backbone.Marionette.CollectionView.extend({
-		tagName: 'ul',
+	//Collection of activities
+	var Activity_List = Backbone.Marionette.CompositeView.extend({
+		tagName: 'table',
+		className: 'table',
+		template: _.template('<thead><tr><th>Activity</th><th>State</th><th>Last Updated</th></thead><tbody></tbody>'),
+		itemViewContainer: 'tbody',
 		itemView: Backbone.Marionette.ItemView.extend({
-			tagName: 'li',
-			template: _.template("<a href=\"#activities/{{ _id }}\">{{ design.name }} - state: {{ state }}</a>")
+			tagName: 'tr',
+			template: _.template('<td><a href="#activities/{{ _id }}">{{ design.name }}</a></td><td>{{ state }}</td><td>{{ last_updated }}</td>'),
+			templateHelpers: function() {
+				var history_last = _.last(this.model.get('history'));
+				return { last_updated: history_last && history_last.when };
+			}
 		}),
-		emptyView: Backbone.Marionette.ItemView.extend({ template: _.template("<i>Loading...</i>"), tagName: 'li' })
+		emptyView: Backbone.Marionette.ItemView.extend({ tagName: 'tr', template: _.template("<td colspan=3><i>Loading...</i></td>") }),
 		//appendHtml: function(collectionView, itemView) { collectionView.$('ul').append(itemView.el); }
+		
+		initialize: function() {
+			//Modify the isodate sorter parser so it actually *works*
+			_.extend($.tablesorter.getParserById("isoDate"), {
+				format: function(s, table) { return s; },
+				type: "text"
+			});
+			
+			//Make the table sortable when first rendered
+			this.once('render', function() { this.$el.tablesorter({debug:true}); }, this);
+			
+			//Whenever the table is re-rendered, trigger an update so the sorting continues to work.
+			this.on('render', function() { this.$el.trigger("update"); }, this);
+		}
 	});
 
 

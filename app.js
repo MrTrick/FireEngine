@@ -61,8 +61,7 @@ var settings = require(CONFIG_PATH + "settings.js");
 Activity.Model.prototype.sync = Activity.Collection.prototype.sync = bb_couch(settings.db);
 Activity.Design.prototype.sync = Activity.Design.Collection.prototype.sync = design_sync( fs.realpathSync( CONFIG_PATH + "designs" ) );
 
-//Load the handler environment and contexts
-var environment = require(CONFIG_PATH + "environment.js");
+//Load the context
 var contextBuilder = require(CONFIG_PATH + "context.js");
 if (typeof contextBuilder != 'function') throw("context.js must export a function");
 
@@ -71,6 +70,7 @@ if (typeof contextBuilder != 'function') throw("context.js must export a functio
 http.createServer(function(request, response) {
 	var input = '';
 	//-------------------------------------------------------------------------
+	//Utility functions within the scope of a request
 	function send(body, status_code, headers) {
 		var headers = _.extend({
 			'Content-Type': 'application/json',
@@ -85,6 +85,12 @@ http.createServer(function(request, response) {
 		console.error(error, error.status_code, "for", request.method, request.url);
 		if (error.inner) console.error(error.inner);
 	}
+	
+	//-------------------------------------------------------------------------
+	//Calculate this request's context
+	//(Who is the current user, what handler libraries are available, etc)
+	var context = contextBuilder(request);
+	console.log(context);
 	
 	//-------------------------------------------------------------------------
 	//Request routers
@@ -132,11 +138,7 @@ http.createServer(function(request, response) {
 				var action = activity.action(action_id);
 				if (!action) return send_error(new Activity.Error("No such action '"+action_id+"'", 404));
 				console.log("[Route] Current State:", activity.get('state'));
-				
-				//Calculate the context for the action
-				//(Current user, libraries, etc)
-				var context = _.extend({}, environment, contextBuilder(request, input, action));
-				
+
 				//Check permissions				
 				if (!action.allowed(context)) return send_error(new Activity.Error("Action '"+action_id+"' forbidden", 403));
 								
@@ -208,14 +210,13 @@ http.createServer(function(request, response) {
 			//After A and B are ready...
 			var whenReady = _.after(2, function() {
 				console.log("[Route] Received data and loaded design");
-				console.log(design);
+
 				var action = design.action('create');
 				if (!action) return send_error(new Activity.Error("Design error - no create action", 500, id));
 				
 				//Create an empty new activity of that design, and store in the action
 				var activity = new Activity.Model({design: design.attributes});
 				action.activity = activity;
-				var context = _.extend({}, environment, contextBuilder(request, input, action));
 				
 				//Check permissions
 				if (!action.allowed(context)) return send_error(new Activity.Error("Create forbidden", 403, id));

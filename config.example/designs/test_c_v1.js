@@ -40,7 +40,7 @@ require("underscore").extend(exports, {
 		},
 		"fire": function() {
 			console.log("inside test_c/create/fire");
-			
+
 			//Validate the inputs; should look like {name:"newname",object:"id"}
 			var report = JSV.validate(inputs, {
 				type: "object", 
