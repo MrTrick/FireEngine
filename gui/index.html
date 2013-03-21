@@ -30,6 +30,8 @@
     <![endif]-->
     
     <!-- Application-specific files -->
+    <script type="text/javascript" src="lib/auth.js"></script>    
+    <script type="text/javascript" src="lib/flash.js"></script>
     <script type="text/javascript">     
       _.templateSettings = { interpolate : /\{\{(.+?)\}\}/g }; //Use mustache templates, not ERB-style
       var App = new Backbone.Marionette.Application();
@@ -37,7 +39,6 @@
       //TODO: move to index.js
       App.error = {system:function(coll, error, options) { App.main.$el.html("ERROR: "+error.status+" "+error.statusText); }};
     </script>
-    <script type="text/javascript" src="lib/flash.js"></script>
     <script type="text/javascript" src="pages/page.index.js"></script>
     <script type="text/javascript" src="pages/page.view.js"></script>
     <script type="text/javascript" src="pages/page.prep.js"></script>
@@ -52,6 +53,9 @@
       <div class="navbar-inner">
         <div class="container">
           <a class="brand" href="#">Activity Manager</a>
+          
+          <div class="pull-right" id="session">
+          </div>
         </div>
       </div>
     </div>

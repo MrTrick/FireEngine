@@ -30,7 +30,7 @@
 			});
 			
 			//Make the table sortable when first rendered
-			this.once('render', function() { this.$el.tablesorter({debug:true}); }, this);
+			this.once('render', function() { this.$el.tablesorter({}); }, this);
 			
 			//Whenever the table is re-rendered, trigger an update so the sorting continues to work.
 			this.on('render', function() { this.$el.trigger("update"); }, this);

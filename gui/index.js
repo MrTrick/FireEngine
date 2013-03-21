@@ -4,6 +4,20 @@
 //Configure!
 Activity.baseUrl(settings.serverUrl);
 App.context = settings.environment;
+var session = Auth.startSession({
+	loginUrl: 'auth/login',
+	logoutUrl: 'auth/logout',
+	authenticateRequest: function(xhr, url, params) {
+		var signature = CryptoJS.HmacSHA256(method+url, this.get('client_key'));
+		var auth_block = {
+			identity: this.get('identity'),
+			expiry: this.get('expiry'),
+			signature: signature.toString()
+		};
+		xhr.setRequestHeader('Authorization', 'HMAC '+$.param(auth_block));
+	}
+});
+
 
 var Debug = {};
 Debug.View = Backbone.View.extend({
@@ -16,7 +30,8 @@ Debug.View = Backbone.View.extend({
 
 App.addRegions({
 	main: "#main",
-	alerts: "#alerts"
+	alerts: "#alerts",
+	session: "#session"
 });
 
 App.router = new (Backbone.Router.extend({
@@ -33,6 +48,6 @@ App.router = new (Backbone.Router.extend({
 $(function() {
 	App.start(); 
 	Backbone.history.start();
-	
+	App.session.show(Auth.sessionView);
 	App.alerts.show(FlashManager);
 });
