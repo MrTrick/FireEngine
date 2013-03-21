@@ -90,7 +90,6 @@ http.createServer(function(request, response) {
 	//Calculate this request's context
 	//(Who is the current user, what handler libraries are available, etc)
 	var context = contextBuilder(request);
-	console.log(context);
 	
 	//-------------------------------------------------------------------------
 	//Request routers
