@@ -5,17 +5,8 @@
 Activity.baseUrl(settings.serverUrl);
 App.context = settings.environment;
 var session = Auth.startSession({
-	loginUrl: 'auth/login',
-	logoutUrl: 'auth/logout',
-	authenticateRequest: function(xhr, url, params) {
-		var signature = CryptoJS.HmacSHA256(method+url, this.get('client_key'));
-		var auth_block = {
-			identity: this.get('identity'),
-			expiry: this.get('expiry'),
-			signature: signature.toString()
-		};
-		xhr.setRequestHeader('Authorization', 'HMAC '+$.param(auth_block));
-	}
+	loginUrl: Activity.baseUrl()+'auth/login',
+	logoutUrl: Activity.baseUrl()+'auth/logout'
 });
 
 

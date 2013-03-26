@@ -19,11 +19,13 @@ Auth = this.Auth = (function() {
 	//Attempt to track the difference between client and server time
 	var server_time_offset = 0;
 	
+	var _warned = 0;
 	//Every time a response is received, calculate and store the difference between server time and client time
 	function addServerTimeHook() {
 		$(document).ajaxComplete(function(event,xhr) {
+			//TODO: CORS issues - can't get the response header. http://www.html5rocks.com/en/tutorials/cors/
 			var date_str = xhr.getResponseHeader("Date");
-			if (!date_str) { console.log("Response didn't contain Date"); return; }
+			if (!date_str && !_warned++) { console.warn("Responses don't contain Date"); return; };
 			server_time_offset = Math.round( (new Date(date_str).valueOf() - new Date().valueOf()) / 1000 );
 		});
 	}
@@ -32,7 +34,22 @@ Auth = this.Auth = (function() {
 	var getServerTime = auth.getServerTime = function() { 
 		return Math.round(Date.now()/1000) + server_time_offset; 
 	};
+
 	
+	//--------------------------------
+	//Authentication hook
+	//
+	//This function hooks into every request before it's sent.
+	//If there is an authenticated session, will 'sign' the request.
+	//--------------------------------
+	function addAuthenticationHook() {
+		$(document).ajaxSend(function(event,xhr,settings) {
+			if (auth.session.isAuthenticated()) {
+				auth.session.authenticateRequest(xhr, settings);
+			}
+		});
+	}
+		
 	//--------------------------------
 	//Session object
 	//Responsible for: 
@@ -50,7 +67,7 @@ Auth = this.Auth = (function() {
 		//authenticateRequest : function(xhr, url, params) { ... }
 		
 		initialize: function(data, options) {
-			_.each(['loginUrl', 'logoutUrl', 'authenticateRequest'], function(k) {
+			_.each(['loginUrl', 'logoutUrl'], function(k) {
 				if (options[k]) this[k] = options[k];
 				if (!this[k]) throw "Must define " + k;
 			});
@@ -73,7 +90,7 @@ Auth = this.Auth = (function() {
 		 */
 		isAuthenticated: function() {
 			var expiry = this.get('expiry');
-			return this.get('identity') && expiry && expiry > App.getServerTime();
+			return this.get('identity') && expiry && expiry > Auth.getServerTime();
 		},
 		
 		/**
@@ -83,19 +100,27 @@ Auth = this.Auth = (function() {
 		 */
 		login: function(options) {
 			options = options ? _.clone(options) : {};
-			var success = options.success;
+			var success_handler = options.success, error_handler = options.error;
 			options.success = function(sess, resp, options) {
 				//Set up a trigger to log the user out when their key expires
 				if (sess.timeout_trigger) clearTimeout(sess.timeout_trigger);
-				sess.timeout_trigger = setTimeout(_.bind(sess.logout, sess), (sess.get('expiry') - App.getServerTime())*1000); 
+				sess.timeout_trigger = setTimeout(_.bind(sess.logout, sess), (sess.get('expiry') - Auth.getServerTime())*1000); 
 
+				FlashManager.info("Logged in as " + sess.get("identity"));
+				
 				//On successful login, trigger a login(session, identity, options) event
 				sess.trigger('login', sess, sess.get('identity'), options);
-				if (success) success(sess, resp, options);
+				if (success_handler) success_handler(sess, resp, options);
+			};
+			options.error = function(sess, xhr, options) {
+				if (xhr.status==500) FlashManager.error('Server error, please try again later.');
+				else FlashManager.error(JSON.parse(xhr.responseText).error);
+				
+				if (error_handler) error_handler(sess, xhr, options);
 			};
 			
 			//Authenticate by fetching to the given URL
-			this.fetch(options);
+			this.fetch(_.extend({method:'POST'}, options));
 
 			return this;
 		},
@@ -115,47 +140,34 @@ Auth = this.Auth = (function() {
 
 			//On logout, trigger a logout(model, identity, options) event
 			this.trigger('logout', this, identity, options);
+			FlashManager.info("Logged out");
 
 			//Notify the server that we're logging out, don't read the response
-			if (options.url)
-				$.ajax(options.url, {data:{identity:identity}});
+			$.ajax(this.logoutUrl, {data:{identity:identity}});
+		},
+		
+		/**
+		 * Sign the given request
+		 * @param xhr
+		 * @param url
+		 * @param params
+		 */
+		authenticateRequest: function(xhr, settings) {
+			var method = settings.type;
+			var url = settings.url;
+			var signature = CryptoJS.HmacSHA256(method+url, this.get('client_key'));
+			var auth_block = {
+				identity: this.get('identity'),
+				expiry: this.get('expiry'),
+				signature: signature.toString()
+				//url: url //Just for debug/info purposes, not used
+			};
+			
+			//console.log("Encoded '"+method+url+"' with key: " + this.get('client_key'));
+			//console.log("Auth block: ", auth_block, "Url", url);
+			xhr.setRequestHeader('Authorization', 'HMAC '+$.param(auth_block));
 		}
 	});
-	
-	//--------------------------------
-	//Authentication hook
-	//
-	//This function hooks into every request before it's sent.
-	//If there is an authenticated session, will 'sign' the request.
-	//--------------------------------
-	function addAuthenticationHook() {
-		$(document).ajaxSend(function(event,xhr,params) {
-			if (auth.session.isAuthenticated()) {
-				var method = params['type'];
-				var base = window.location.href.substring(0, window.location.href.length - window.location.search.length);
-				var url = base + params['url']; //The absolute url for the request TODO: Make more reliable
-				
-				auth.session.authenticateRequest.call(auth.session, xhr, url, params);
-			}
-		});
-	}
-	
-	//--------------------------------
-	//Entry point
-	//
-	//Called from main code to start the session
-	auth.startSession = function(options) {
-		if (auth.session) {
-			console.warn("Session already started");
-		} else {
-			auth.session = new Session({}, options);
-			auth.sessionView = new SessionView({model:auth.session});
-			addServerTimeHook();
-			addAuthenticationHook();
-			console.log("Started session");
-		}
-		return auth.session;
-	};
 
 	//////////////////////////////////////////////////////////////////////////
 	//Session View
@@ -166,13 +178,13 @@ Auth = this.Auth = (function() {
 	
 	var SessionView = Backbone.Marionette.ItemView.extend({
 		templates: {
-			identified: _.template(
+			loggedin: _.template(
 	          '<div>'+
 	            '<p class="navbar-text pull-left">Logged in as {{ identity }}. </p> '+
 	              '<a id="logout_btn" class="btn pull-left">Log out</a>'+
 	          '</div>'
 	        ), 
-	        unidentified: _.template(
+	        login: _.template(
 			  '<form class="navbar-form">'+
 	            '<input class="span2" type="text" name="username" placeholder="User Name"> '+
 	            '<input class="span2" type="password" name="password" placeholder="Password"> '+
@@ -180,14 +192,14 @@ Auth = this.Auth = (function() {
 	          '</form>'
 	        )
 		},
-		template: function(data) {
-			return this.templates[ data.identity ? "identified" : "unidentified" ](data); 
+		getTemplate: function() {
+			return this.model.get('identity') ? this.templates.loggedin : this.templates.login;
 		},
 		initialize: function(options) {
 			_.bindAll(this);
 			
 			//Ensure that any session changes ... wait, this should be caught by 'change' 
-			//this.model.on('login logout', this.render());
+			this.model.on('login logout', this.render);
 		},
 		events: {
 			'submit form': 'doLogin',
@@ -208,14 +220,9 @@ Auth = this.Auth = (function() {
 				return FlashManager.error("Missing username or password");
 			
 			this.model.login({
-				data:{username:username, password:password},
-				error: _.bind(function(sess, xhr, options) {
-					if (xhr.status==500) 
-						FlashManager.error('Server error, please try again later.');
-					else
-						FlashManager.error(JSON.parse(xhr.responseText).error);
-				}, this)
+				data: JSON.stringify({username:username, password:password})
 			});
+			
 		},
 		
 		/**
@@ -227,6 +234,23 @@ Auth = this.Auth = (function() {
 			this.model.logout();
 		}
 	});
+
+	//--------------------------------
+	//Entry point
+	//
+	//Called from main code to start the session
+	auth.startSession = function(options) {
+		if (auth.session) {
+			console.warn("Session already started");
+		} else {
+			auth.session = new Session({}, options);
+			auth.sessionView = new SessionView({model:auth.session});
+			addServerTimeHook();
+			addAuthenticationHook();
+			console.log("Started session");
+		}
+		return auth.session;
+	};
 	
 	return auth;
 })();

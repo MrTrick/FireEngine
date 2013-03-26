@@ -24,21 +24,25 @@
     <script type="text/javascript" src="../node_modules/JSV/lib/jsv.js"></script>
     <script type="text/javascript" src="../node_modules/JSV/lib/json-schema-draft-03.js"></script>
     <script type="text/javascript" src="external/backbone.marionette.js"></script>
+    <script type="text/javascript" src="external/hmac-sha256.js"></script>
     <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
     <!--[if lt IE 9]>
       <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
     
     <!-- Application-specific files -->
-    <script type="text/javascript" src="lib/auth.js"></script>    
-    <script type="text/javascript" src="lib/flash.js"></script>
     <script type="text/javascript">     
       _.templateSettings = { interpolate : /\{\{(.+?)\}\}/g }; //Use mustache templates, not ERB-style
       var App = new Backbone.Marionette.Application();
       
       //TODO: move to index.js
-      App.error = {system:function(coll, error, options) { App.main.$el.html("ERROR: "+error.status+" "+error.statusText); }};
+      App.error = {system:function(coll, error, options) { 
+    	  App.main.$el.html("ERROR: "+error.status+" "+error.statusText);
+          console.log(arguments);
+      }};
     </script>
+    <script type="text/javascript" src="lib/auth.js"></script>    
+    <script type="text/javascript" src="lib/flash.js"></script>
     <script type="text/javascript" src="pages/page.index.js"></script>
     <script type="text/javascript" src="pages/page.view.js"></script>
     <script type="text/javascript" src="pages/page.prep.js"></script>

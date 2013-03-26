@@ -6,8 +6,7 @@ var Backbone = require('backbone');
 var bb_couch = require('../lib/bb_couch.js');
 var settings = require('./settings.js');
 var Activity = require('../lib/activity.js');
-
-
+var Identity = require('../lib/identity.js')(settings);
 
 var context = {};
 
@@ -39,17 +38,13 @@ context.MyExternal = MyExternal;
 
 function contextBuilder(request) {
 	var _context = _.extend({}, context);
-	
-	//Who is the user?
-	//THIS IS A TERRIBLE INSECURE METHOD. DON'T DO THIS IN PRODUCTION, USE HMAC.
-	var auth = request.headers.authorization;
-	if (auth) {
-		debugger;
-		console.log(auth);
-		console.log(new Buffer(auth, 'base64').toString('ascii'));
-	} 
-	
-	return context;
+
+	//Load the user_id in the context
+	var user_id = Identity.test(request);
+	console.log("Identity: ", user_id);
+	_context.user = user_id;
+
+	return _context;
 }
 
 

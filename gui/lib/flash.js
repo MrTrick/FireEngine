@@ -66,7 +66,7 @@ var FlashManager = new (Backbone.Marionette.CollectionView.extend({
 		}
 		this.collection.add(new this.itemModel({type:type, title:title, message:msg, lifetime:lifetime}));
 		
-		console.log("[FLASH] " + title + ": " + msg);
+		console.log("[FLASH] " + title + ": " + msg, "("+(new Date()).toUTCString()+")");
 	},
 
 	initialize: function() {

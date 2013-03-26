@@ -38,15 +38,14 @@
  */
 
 //-----------------------------------------------------------------------------
-//Application and system modules needed by the application
-var Activity = require("./lib/activity.js");
-var bb_couch = require("./lib/bb_couch.js");
-var design_sync = require("./lib/design_sync.js");
-
+//Modules needed by the application
 var fs = require("fs");
 var Backbone = require("backbone");
 var http = require("http");
 var url = require("url");
+var bb_couch = require("./lib/bb_couch.js");
+var Activity = require("./lib/activity.js");
+var design_sync = require("./lib/design_sync.js");
 
 //-----------------------------------------------------------------------------
 //Where is everything? Load the site settings
@@ -56,7 +55,7 @@ var url = require("url");
 var CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config/" : "./config.example/");
 process.env.CONFIG_PATH = CONFIG_PATH;
 var settings = require(CONFIG_PATH + "settings.js");
-
+	
 //Have Activities and designs use the correctly configured sync functions 
 Activity.Model.prototype.sync = Activity.Collection.prototype.sync = bb_couch(settings.db);
 Activity.Design.prototype.sync = Activity.Design.Collection.prototype.sync = design_sync( fs.realpathSync( CONFIG_PATH + "designs" ) );
@@ -73,8 +72,13 @@ http.createServer(function(request, response) {
 	//Utility functions within the scope of a request
 	function send(body, status_code, headers) {
 		var headers = _.extend({
+			'Date' : (new Date()).toUTCString(), //Date	Mon, 25 Mar 2013 06:58:17 GMT
+			'Last-Modified' : (new Date()).toUTCString(), //Date	Mon, 25 Mar 2013 06:58:17 GMT
 			'Content-Type': 'application/json',
-			'Access-Control-Allow-Origin' : '*'
+			'Access-Control-Allow-Origin' : '*',
+			'Access-Control-Allow-Methods' : 'GET, POST',
+			'Access-Control-Allow-Headers' : 'Content-Type, Depth, User-Agent, Authorization'
+			//'Access-Control-Expose-Headers' : 'Date, Last-Modified, Content-Type'
 		}, headers || {});
 		response.writeHead( status_code || 200, headers);
 		response.write(JSON.stringify(body) + "\n");
@@ -85,11 +89,6 @@ http.createServer(function(request, response) {
 		console.error(error, error.status_code, "for", request.method, request.url);
 		if (error.inner) console.error(error.inner);
 	}
-	
-	//-------------------------------------------------------------------------
-	//Calculate this request's context
-	//(Who is the current user, what handler libraries are available, etc)
-	var context = contextBuilder(request);
 	
 	//-------------------------------------------------------------------------
 	//Request routers
@@ -246,6 +245,47 @@ http.createServer(function(request, response) {
 		}
 	};
 	
+	var auth_router = {
+		route: function(path) {
+			if (path == 'login') this.login();
+			else if (path == 'logout') this.logout();
+			else send_error(new Activity.Error("Not found", 404, url_parts.pathname));
+		},
+		/**
+		 * Authenticate the user 
+		 */
+		login: function() {
+			console.log("[Route] Login");
+			var Identity = require("./lib/identity.js")(settings);
+			if (request.method != 'POST') return send_error(new Activity.Error("Login request must be POST", 405), {Allow: "POST"});
+
+			waitForPost(function() {
+				console.log("[Route] User " + input.username + " attempting login");
+				//settings.auth.adapter(
+				//	input,
+				//	function() {
+						console.log("[Route] Success!");
+					
+						//Create their session credentials
+						var credentials = Identity.create(input.username);
+
+						send(credentials);
+				//	},
+				//	function(err) {
+				//		debugger;
+				//		send_error(new Activity.Error(err, 500));
+				//	}
+				//);
+			});
+		},
+		
+		logout: function() {
+			console.log("[Route] Logout");
+			send('{}');
+		}
+			
+	};
+	
 	/**
 	 * Top-level handler. Returns human-readable (ish) reflective API information 
 	 */
@@ -290,9 +330,15 @@ http.createServer(function(request, response) {
 	var path = url_parts.pathname = url_parts.pathname.replace(/\/{2,}/,'/').replace(/\/$/,''); //Strip out any extra or trailing slashes
 	console.log("-------------------------------------------------------------------------");
 	console.log("Received a request for '"+path+"'");
+	
+	//Calculate this request's context
+	//(Who is the current user, what handler libraries are available, etc)
+	var context = contextBuilder(request);
+	
 	if (path == '') index();
 	else if (m=/^\/activities\/?(.*)$/.exec(path)) activity_router.route(m[1]);
 	else if (m=/^\/designs\/?(.*)$/.exec(path)) design_router.route(m[1]);
+	else if (m=/^\/auth\/?(.*)$/.exec(path)) auth_router.route(m[1]);
 	else send_error(new Activity.Error("Not found", 404, path));
 }).listen(settings.serverport);
 //-----------------------------------------------------------------------------
