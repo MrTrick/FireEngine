@@ -325,6 +325,15 @@ http.createServer(function(request, response) {
 		});
 	}
 	
+	//-------------------------------------------------------------------------
+	//Catch all 'OPTIONS' requests
+	//TODO: Identify if OPTIONS could/should be expanded into self-documenting APIs, like 
+	//http://zacstewart.com/2012/04/14/http-options-method.html or https://developers.helloreverb.com/swagger/
+	if (request.method == 'OPTIONS') {
+		console.log("OPTIONS request - handled");
+		return send("{}", 200, {Allow: "HEAD,GET,POST,OPTIONS"});
+	}
+	
 	//Process and route the request
 	var url_parts = url.parse(request.url);
 	var path = url_parts.pathname = url_parts.pathname.replace(/\/{2,}/,'/').replace(/\/$/,''); //Strip out any extra or trailing slashes
