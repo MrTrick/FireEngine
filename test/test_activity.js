@@ -26,11 +26,38 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * Include all tests 
- */
+var _ = require('underscore');
+var Activity = require("../lib/activity.js");
+//var Sanitize = require("../lib/sanitizer.js");
 
-module.exports = {
-	test_design: require("./test_design.js"),
-	test_activity: require("./test_activity.js")
-}
+/**
+ * Test that the activity object validates correctly 
+ */
+exports.definition = {
+	/**
+	 * Empty activity not allowed.
+	 */
+	testEmpty: function(t) {
+		t.expect(7);
+		var activity = new Activity.Model({});
+		
+		t.ok( !activity.isValid(), "An empty activity is invalid");
+		
+		var errors = activity.validate();
+		
+		t.equal( errors.length, 3 );
+		_.each(errors, function(e) {
+			t.equal( e.message, "Property is required" );
+		});
+		
+		//Check that the 'design' validation is done by the design schema (eg a $ref)
+		//It follows that the contents of that property will be tested by the design schema for any value. 
+		var err_design = _.find(errors, function(e) { return /design$/.test(e.uri); });
+		t.ok(err_design, "Design was an error");
+		t.equal(err_design.schemaUri, 'urn:design#', "Validation by design schema");
+	
+		t.done();
+	}
+	
+	// TODO: Write more tests. (As required?)
+};
