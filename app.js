@@ -40,34 +40,36 @@
 //-----------------------------------------------------------------------------
 //Modules needed by the application
 var fs = require("fs");
-var Backbone = require("backbone");
 var http = require("http");
 var url = require("url");
-var bb_couch = require("./lib/bb_couch.js");
-var Activity = require("./lib/activity.js");
-var design_sync = require("./lib/design_sync.js");
+var Backbone = require("backbone");
 
+var Activity = require("./lib/activity.js");
+var User = require("./lib/user.js");
+var Session = require("./lib/session.js");
 //-----------------------------------------------------------------------------
 //Where is everything? Load the site settings
 
 //Look at the FE_CONFIG_PATH environment variable for the location.
 //By default, look in the 'config' subfolder. Or the 'config.example' subfolder, if 'config' is not defined.
-var CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config/" : "./config.example/");
-process.env.CONFIG_PATH = CONFIG_PATH;
+GLOBAL.CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config/" : "./config.example/");
 var settings = require(CONFIG_PATH + "settings.js");
 	
 //Have Activities and designs use the correctly configured sync functions 
-Activity.Model.prototype.sync = Activity.Collection.prototype.sync = bb_couch(settings.db);
-Activity.Design.prototype.sync = Activity.Design.Collection.prototype.sync = design_sync( fs.realpathSync( CONFIG_PATH + "designs" ) );
+Activity.Model.prototype.sync = Activity.Collection.prototype.sync = settings.sync.activity;
+Activity.Design.prototype.sync = Activity.Design.Collection.prototype.sync = settings.sync.design;
+User.Model.prototype.sync = settings.sync.user;
 
 //Load the context
-var contextBuilder = require(CONFIG_PATH + "context.js");
-if (typeof contextBuilder != 'function') throw("context.js must export a function");
+var buildContext = require(CONFIG_PATH + "context.js");
+if (typeof buildContext != 'function') throw("context.js must export a function");
 
 //-----------------------------------------------------------------------------
 //Build the HTTP server
 http.createServer(function(request, response) {
+	var context;	
 	var input = '';
+	
 	//-------------------------------------------------------------------------
 	//Utility functions within the scope of a request
 	function send(body, status_code, headers) {
@@ -249,39 +251,65 @@ http.createServer(function(request, response) {
 		route: function(path) {
 			if (path == 'login') this.login();
 			else if (path == 'logout') this.logout();
+			else if (path == 'self') this.self();
 			else send_error(new Activity.Error("Not found", 404, url_parts.pathname));
 		},
 		/**
-		 * Authenticate the user 
+		 * Check the user's authentication against the adapter,
+		 * and if successful grant them a session key 
 		 */
 		login: function() {
 			console.log("[Route] Login");
-			var Identity = require("./lib/identity.js")(settings);
 			if (request.method != 'POST') return send_error(new Activity.Error("Login request must be POST", 405), {Allow: "POST"});
 
 			waitForPost(function() {
 				console.log("[Route] User " + input.username + " attempting login");
-				//settings.auth.adapter(
-				//	input,
-				//	function() {
-						console.log("[Route] Success!");
-					
-						//Create their session credentials
-						var credentials = Identity.create(input.username);
-
+				
+				settings.auth.login(
+					input,
+					function(identity) { //success
+						//Sanity check
+						if (!identity) 
+							send_error(new Activity.Error("Login succeeded, but no identity given"));
+						
+						console.log("[Route] Login success");
+						
+						//Create and send back their session credentials
+						var credentials = Session( settings.session ).create( identity );
 						send(credentials);
-				//	},
-				//	function(err) {
-				//		debugger;
-				//		send_error(new Activity.Error(err, 500));
-				//	}
-				//);
+					},
+					function(err) { //failure
+						send_error(err);
+					}
+				);
 			});
 		},
-		
+		/**
+		 * Logout the user. Not expected to fail - adapter should handle/log errors internally
+		 */
 		logout: function() {
 			console.log("[Route] Logout");
+			if (settings.auth.logout) {
+				if (request.method == 'POST')
+					waitForPost(function() { settings.auth.logout(input); });
+				else
+					settings.auth.logout();
+			}
+			
 			send('{}');
+		},
+		
+		/**
+		 * Send self. If the user is authenticated, return their information
+		 */
+		self: function() {
+			console.log("[Route] Self");
+			
+			if (context.user) {
+				send(context.user.toJSON());
+			} else {
+				send_error("No identity given", 404);
+			}
 		}
 			
 	};
@@ -334,21 +362,23 @@ http.createServer(function(request, response) {
 		return send("{}", 200, {Allow: "HEAD,GET,POST,OPTIONS"});
 	}
 	
-	//Process and route the request
-	var url_parts = url.parse(request.url);
-	var path = url_parts.pathname = url_parts.pathname.replace(/\/{2,}/,'/').replace(/\/$/,''); //Strip out any extra or trailing slashes
-	console.log("-------------------------------------------------------------------------");
-	console.log("Received a request for '"+path+"'");
-	
-	//Calculate this request's context
+	//Build the request's context before routing
 	//(Who is the current user, what handler libraries are available, etc)
-	var context = contextBuilder(request);
-	
-	if (path == '') index();
-	else if (m=/^\/activities\/?(.*)$/.exec(path)) activity_router.route(m[1]);
-	else if (m=/^\/designs\/?(.*)$/.exec(path)) design_router.route(m[1]);
-	else if (m=/^\/auth\/?(.*)$/.exec(path)) auth_router.route(m[1]);
-	else send_error(new Activity.Error("Not found", 404, path));
+	buildContext(request, function(_context) {
+		context = _context;
+		
+		//Process and route the request
+		var url_parts = url.parse(request.url);
+		var path = url_parts.pathname = url_parts.pathname.replace(/\/{2,}/,'/').replace(/\/$/,''); //Strip out any extra or trailing slashes
+		console.log("-------------------------------------------------------------------------");
+		console.log("Received a request for '"+path+"'");
+		
+		if (path == '') index();
+		else if (m=/^\/activities\/?(.*)$/.exec(path)) activity_router.route(m[1]);
+		else if (m=/^\/designs\/?(.*)$/.exec(path)) design_router.route(m[1]);
+		else if (m=/^\/auth\/?(.*)$/.exec(path)) auth_router.route(m[1]);
+		else send_error(new Activity.Error("Not found", 404, path));
+	}, send_error );
 }).listen(settings.serverport);
 //-----------------------------------------------------------------------------
 console.log("Server listening on port "+settings.serverport+"...");
