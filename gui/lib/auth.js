@@ -120,7 +120,7 @@ Auth = this.Auth = (function() {
 			};
 			
 			//Authenticate by fetching to the given URL
-			this.fetch(_.extend({method:'POST'}, options));
+			this.fetch(_.extend({method:'POST', contentType:'application/json'}, options));
 
 			return this;
 		},

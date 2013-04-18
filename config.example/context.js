@@ -6,7 +6,6 @@ var Backbone = require('backbone');
 var bb_couch = require('../lib/bb_couch.js');
 var settings = require('./settings.js');
 var Activity = require('../lib/activity.js');
-var Session = require('../lib/session.js')(settings.session);
 var User = require('../lib/user.js');
 
 var base_context = {};
@@ -36,37 +35,41 @@ MyExternal.Collection = Backbone.Collection.extend({
 base_context.MyExternal = MyExternal;
 
 //------------------------------------------------------------------
-
-function buildContext(request, success, error) {
-	var context = _.extend({}, base_context);
+//Middleware to load the context into the request
+function buildContext(req, res, next) {
 	var user_id;
+
+	//Load the context
+	req.context = _.extend({}, base_context);
+
 
 	//Try to load the identity from the session, and load the user
 	try {
-		user_id = Session.test(request);
-	} catch(e) {
-		return error(e);
+		user_id = req.app.get('session').test(req);
+	} catch(error) {
+		next(error);
 	}
 	
-	//If the request isn't signed and the 'identity=USER_ID' query value is given, use it. 
-	//TODO: TO ASSIST DEBUGGING ONLY, DO NOT USE FOR REAL context.js
-	if (!user_id) {
-		var query = require('url').parse(request.url, true).query;
-		if (query.identity) user_id = query.identity;
-	}
+	//TODO: TO ASSIST DEBUGGING ONLY, DO NOT USE FOR REAL context.js!
+	// (If the req isn't signed and the 'user_id=USER_ID' query value is given, use it.)	
+	if (!user_id && req.query.user_id) user_id = req.query.user_id;
+	//      TO ASSIST DEBUGGING ONLY, DO NOT USE FOR REAL context.js!
+
+	
 	console.log("Identity: ", user_id);
-	context.user_id = user_id;
+	
+	req.context.user_id = user_id;
 	
 	//Load the user if identity known
 	if (user_id) {
-		context.user = new User.Model({id:user_id});
-		context.user.fetch({
-			success: function() { success(context); },
-			error: function(model, e) { error(e); }
+		var user = req.user = req.context.user = new User.Model({id:user_id});
+		user.fetch({
+			success: function() { next(); },
+			error: function(model, e) { 
+				next(e); 
+			}
 		});
-	} else {
-		success(context);
-	}
+	} else next();
 }
 
 module.exports = buildContext;

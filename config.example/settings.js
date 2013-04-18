@@ -51,14 +51,14 @@ exports.auth = {
 	/**
 	 * User login - given the credentials, call success(id) or failure(error)
 	 */
-	login: function(credentials, success, failure) {
+	login: function(credentials, options) {
 		//For the example, just authenticate against the dummy user list
 		var user = _.find(users, function(u) { return u.id == credentials.username; });
 		//(password same as username)
 		if (user && credentials.password == user.id) {
-			success(user.id);
+			options.success(user.id);
 		} else {
-			failure(new Activity.Error("Incorrect credentials", 403));
+			options.error(new Activity.Error("Incorrect credentials", 403));
 		}
 	}
 

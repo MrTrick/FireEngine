@@ -6,11 +6,15 @@
   "dependencies": {
     "JSV": "~4.0.2",
     "backbone": "~0.9.9",
-    "nano": "~3.3.6",
+    "nano": "~3.3.6", 
     "underscore": "~1.4.3",
-    "ldapauth": "~2.2.1"
+    "ldapauth": "~2.2.1",
+    "express": "3.*"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "nodeunit" : "*",
+    "couchapp": "*"
+  },
   "scripts": {
     "test": "nodeunit test/test_all.js"
   },
