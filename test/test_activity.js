@@ -38,14 +38,14 @@ exports.definition = {
 	 * Empty activity not allowed.
 	 */
 	testEmpty: function(t) {
-		t.expect(7);
+		t.expect(6);
 		var activity = new Activity.Model({});
 		
 		t.ok( !activity.isValid(), "An empty activity is invalid");
 		
 		var errors = activity.validate();
 		
-		t.equal( errors.length, 3 );
+		t.equal( errors.length, 2 );
 		_.each(errors, function(e) {
 			t.equal( e.message, "Property is required" );
 		});
@@ -60,4 +60,33 @@ exports.definition = {
 	}
 	
 	// TODO: Write more tests. (As required?)
+};
+
+/**
+ * Test the Activity utility functions 
+ */
+exports.utilities = {
+	/**
+	 * Test the coercion function - especially, check syntax error that occured if handler had //comments on last line  
+	 */
+	testCoercion: function(t) {
+		var handler;
+		handler = Activity.coerce("");
+		t.equal(typeof handler, "function");
+		
+		handler = Activity.coerce("return 'foo';");
+		t.equal(typeof handler, "function");
+		t.equal(handler(), 'foo');
+		
+		handler = Activity.coerce("return foo;");
+		t.equal(typeof handler, "function");
+		t.equal(handler.call({foo:"Haggis"}), "Haggis", "Injected scope is visible");
+		
+		handler = Activity.coerce("return \"stuff\";\n//Hey, a comment!");
+		t.equal(typeof handler, "function");
+		t.equal(handler(), 'stuff');
+		
+		t.done();
+	}
+	
 };

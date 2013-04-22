@@ -142,3 +142,54 @@ exports.definition = {
 		 */
 	}
 };
+
+/**
+ * Validate the example designs
+ */
+exports.validation = {
+	/**
+	 * Check common features of the designs
+	 */
+	testCommon: function(t) { 
+		var sync = require('../lib/design_sync.js')(__dirname + "/../config.example/designs");
+		Activity.Design.prototype.sync = sync;
+		Activity.Design.Collection.prototype.sync = sync;
+		
+		function checkHandler(handler, msg) {
+			if (!handler) return;
+			t.doesNotThrow(function() { //doesNotThrow won't unfortunately actually catch any syntax errors 
+				//console.log(msg);
+				handler = Activity.coerce(handler);
+				t.equal(typeof handler, "function");
+			}, msg + " failed to instantiate");
+		}
+		
+		var designs = new Activity.Design.Collection();
+		designs.on('error', function(designs, error) { t.done(error); });
+		designs.fetch({ success: function(designs) {
+			t.equal(designs.length, 4, "Expect 4 designs");
+			
+			designs.each(function(design) {
+				//Check built-in validation
+				t.ok(design.isValid(), "Expect design to be valid");
+
+				//Check that no handlers were mistakenly called 'prep'
+				t.ok( !design.attributes.create.prep, "Should not have 'prep' create handler" );
+				_.each(design.attributes.actions, function(action) {
+					t.ok( !action.prep, "Should not have 'prep' handler for " + action.id );
+				});
+				
+				//Instantiate each of the design's handlers
+				_.each(['allowed', 'prepare', 'fire'], function(type) {
+					checkHandler(design.attributes.create[type], design.id + ":create." + type);
+					
+					_.each(design.attributes.actions, function(action) { 
+						checkHandler(action[type], design.id + ":" + action.id + "." + type); 
+					});
+				});
+			});
+			
+			t.done();
+		}});
+	}
+};

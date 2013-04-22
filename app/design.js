@@ -90,7 +90,7 @@ exports.create = function(req, res, next) {
 	//Fire the create action - if successful output the newly-created activity
 	action.fire(req.body, req.context, {
 		timeout: req.app.get('settings').fire_timeout, 
-		success: function() {
+		success: function(activity) {
 			console.log("[Route] Activity created. ID:", activity.id, "State:", activity.get('state'));
 			res.send(activity.toJSON());
 		},

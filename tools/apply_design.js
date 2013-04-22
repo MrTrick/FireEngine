@@ -107,7 +107,6 @@ if (activity_id) {
 	});
 } else {
 	var collection = new Activity.Collection();
-	debugger;
 	collection.fetch({
 		view: { design: 'fireengine', name: 'by_design'},
 		params: { key: design.id },

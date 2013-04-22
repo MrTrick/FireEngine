@@ -32,37 +32,37 @@ An Action is encoded as an object containing;
  * [name](#action.name)
  * [from](#action.from)
  * [to](#action.to)
- * [allowed](#action.allowed_handler)
- * [prepare](#action.prepare_handler)
- * [fire](#action.fire_handler)
+ * [allowed](#action.allowed)
+ * [prepare](#action.prepare)
+ * [fire](#action.fire)
  * when : TODO
  
 The Action may contain other properties. 
 
-### id {#action.id} ### 
+### <a id="action.id"></a>id
 * The Action's unique identifier.
 * Type: String, `[a-z0-9_]+`
 * Required.
 
-### name ### {#action.name}    
+### <a id="action.name"></a>name
 * The human-readable name of the Action, used for display.
 * Type: String.
 * Optional. If omitted, use the pretty-formatted `id` instead.
 
-### from ### {#action.from}
+### <a id="action.from"></a>from
 * The states this action consumes.
 * Array of states. Each must be listed in the `design.states` attribute.
 * For `allowed` to succeed, current `activity.state` must contain all `from` states.
 * On firing, `from` is subtracted from `activity.state`.
 * Optional. If omitted, is empty. (and Action can be fired in any state)
 
-### to ### {#action.to}
+### <a id="action.to"></a>to
 * The states this action produces.
 * Array of states. Each must be listed in the `design.states` attribute.
 * On firing, `to` is added to `activity.state`.
 * Optional. If omitted, is empty. On firing, do not add any further states. (dead-end?)
 
-### allowed ### {#action.allowed_handler}
+### <a id="action.allowed"></a>allowed ###
 * A custom `allowed` handler.
 * Function. Executes within the configured [context]{#context}.
 * Allows __additional__ conditions to be set beyond the `from` conditions.
@@ -70,7 +70,7 @@ The Action may contain other properties.
 * Cannot override where `from` is not valid.
 * Optional. If omitted, allowed.
 
-### prepare ### {#action.prepare_handler}
+### <a id="action.prepare"></a>prepare ###
 * A custom `prepare` handler.
 * Function. Executes within the configured [context]{#context}.
 * Allows __additional__ information or confirmation to be provided from the user before firing.
@@ -78,7 +78,7 @@ The Action may contain other properties.
 * On error or cancel?  ...TODO
 * Optional. If omitted, succeeds immediately with no data.
 
-### fire ### {#action.fire_handler}
+### <a id="action.fire"></a>fire ###
 * A custom `fire` handler.
 * Function. Executes within the configured [context]{#context}.
 * Allows arbitrary execution of logic during the firing of an action.

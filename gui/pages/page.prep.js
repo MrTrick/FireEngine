@@ -43,7 +43,7 @@
 		
 		stopLoading: function() {
 			//Remove the overlay
-			this.$("#prep_overlay").fadeOut(500, function(){ $(this).remove(); } )
+			this.$("#prep_overlay").fadeOut(500, function(){ $(this).remove(); } );
 			
 			//Enable any form elements
 			//TODO: This might break prep handlers that intentionally disable parts of their form.

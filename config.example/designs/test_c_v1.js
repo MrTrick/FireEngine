@@ -54,7 +54,6 @@ require("underscore").extend(exports, {
 			
 			//Require that the referenced document exists
 			var doc = new MyExternal.Model({_id: inputs.doc_id});
-			debugger;
 			doc.fetch({
 				error: function(doc,errors) { 
 					error(_.extend(errors, {message: "MyExternal document '"+inputs.doc_id+"' " + errors.description}));
@@ -75,7 +74,6 @@ require("underscore").extend(exports, {
 	    	"to": ["approved","closed"],
 	    	"allowed" : function() { return true; /* TODO: This should restrict to particular users. */ },
 	    	"fire" : function() {
-	    		debugger;
 	    		console.log("inside (test_c) "+activity.id+"/approve/fire");
 	    		var doc_id = data.doc_id;
 	    		var name = data.name;

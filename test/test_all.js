@@ -33,4 +33,4 @@
 module.exports = {
 	test_design: require("./test_design.js"),
 	test_activity: require("./test_activity.js")
-}
+};

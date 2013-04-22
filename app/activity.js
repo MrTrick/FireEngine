@@ -93,8 +93,8 @@ exports.fire = function(req, res, next) {
 	//Check authorisation				
 	if (!action.allowed(req.context)) return next(new Activity.Error("Action '"+action_id+"' forbidden", 403));
 		
-	//Fire the create action - if successful output the newly-created activity
-	debugger;
+	//Fire the given action - if successful output the updated activity.
+	console.log("Firing: Logging", req.body, req.context);
 	action.fire(req.body, req.context, {
 		timeout: req.app.get('settings').fire_timeout, 
 		success: function() {
