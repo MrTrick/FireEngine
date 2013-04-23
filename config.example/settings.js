@@ -15,12 +15,12 @@ var Activity = require('../lib/activity.js');
 exports.sync = {};
 
 // How does FireEngine access Activities? 
-var bb_couch = require("../lib/bb_couch.js");
-exports.sync.activity = bb_couch(exports.activity_db);
+var sync_couch = require("../lib/sync_couch.js");
+exports.sync.activity = sync_couch(exports.activity_db);
 
 //How does FireEngine access Designs?
-var design_sync = require("../lib/design_sync.js");
-exports.sync.design = design_sync( require('fs').realpathSync( CONFIG_PATH + "designs" ) );
+var sync_design = require("../lib/sync_design.js");
+exports.sync.design = sync_design( require('fs').realpathSync( CONFIG_PATH + "designs" ) );
 
 //How does FireEngine access Users?
 // (For the example config, just use some dummy users in an array)

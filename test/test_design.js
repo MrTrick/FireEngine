@@ -151,7 +151,7 @@ exports.validation = {
 	 * Check common features of the designs
 	 */
 	testCommon: function(t) { 
-		var sync = require('../lib/design_sync.js')(__dirname + "/../config.example/designs");
+		var sync = require('../lib/sync_design.js')(__dirname + "/../config.example/designs");
 		Activity.Design.prototype.sync = sync;
 		Activity.Design.Collection.prototype.sync = sync;
 		

@@ -77,39 +77,36 @@ app.set('session', Session(settings.session));
 app.use(express.logger({immediate:true}));
 app.use(express.bodyParser());
 app.use(function(req, res, next) {
-	res.set({
+	res.set({ //Set the globally-used headers
 		'Access-Control-Allow-Origin' : '*',
 		'Access-Control-Allow-Methods' : 'GET, POST',
-		'Access-Control-Allow-Headers' : 'Content-Type, Depth, User-Agent, Authorization'
-	//'Access-Control-Expose-Headers' : 'Date, Last-Modified, Content-Type'
+		'Access-Control-Allow-Headers' : 'Content-Type, Depth, User-Agent, Authorization',
+		'Date' : (new Date()).toUTCString()
 	});
 	next();
 });
+app.use(buildContext);
 
 //Give happy empty responses to any OPTIONS request for CORS
 app.options('*', function(req, res, next) { res.send(200, {}); });
 
-//Configure open routes
+//Require authentication for some routes
+var requireUser = function(req, res, next) { if (req.user) next(); else next(new Activity.Error("Authenticated user required", 401)); }; 
+
+//Define site routes
 app.post('/auth/login', app_auth.login);
 app.post('/auth/logout', app_auth.logout);
+app.get('/auth/self', requireUser, app_auth.self);
+app.param('design', requireUser, app_design.loadDesign);
+app.get('/designs', requireUser, app_design.index);
+app.get('/designs/:design', requireUser, app_design.read);
+app.post('/designs/:design/fire/create', requireUser, app_design.create);
+app.param('activity', requireUser, app_activity.loadActivity);
+app.get('/activities', requireUser, app_activity.index);
+app.get('/activities/:activity', requireUser, app_activity.read);
+app.post('/activities/:activity/fire/:action', requireUser, app_activity.fire);
 
-//Configure authentication-required routes
-//app.all('*', function(req, res, next) { 
-//	if (req.user) next();
-//	else next(new Activity.Error("Authenticated user required", 401)); 
-//});
-app.use(buildContext);
-app.get('/auth/self', app_auth.self);
-app.param('design', app_design.loadDesign);
-app.get('/designs', app_design.index);
-app.get('/designs/:design', app_design.read);
-app.post('/designs/:design/fire/create', app_design.create);
-app.param('activity', app_activity.loadActivity);
-app.get('/activities', app_activity.index);
-app.get('/activities/:activity', app_activity.read);
-app.post('/activities/:activity/fire/:action', app_activity.fire);
-
-//Configure error handlers
+//Handle errors
 app.use(function(error, req, res, next) {
 	console.error("Error: " + error);
 	res.send({error: error}, error.status_code || 500);
@@ -119,20 +116,7 @@ app.use(function(error, req, res, next) {
 
 app.listen(8000);
 
-
-
-//			'Date' : (new Date()).toUTCString(), //Date	Mon, 25 Mar 2013 06:58:17 GMT
-//			'Last-Modified' : (new Date()).toUTCString(), //Date	Mon, 25 Mar 2013 06:58:17 GMT
-//			'Content-Type': 'application/json',
-//			'Access-Control-Allow-Origin' : '*',
-//			'Access-Control-Allow-Methods' : 'GET, POST',
-//			'Access-Control-Allow-Headers' : 'Content-Type, Depth, User-Agent, Authorization'
-			//'Access-Control-Expose-Headers' : 'Date, Last-Modified, Content-Type'
-//	function send_error(error, headers) {
-//		send({error: error}, error.status_code || 500, headers);
-//		console.error(error, error.status_code, "for", request.method, request.url);
-//		if (error.inner) console.error(error.inner);
-//	}
+//TODO: Replace index
 //	/**
 //	 * Top-level handler. Returns human-readable (ish) reflective API information 
 //	 */
@@ -152,34 +136,6 @@ app.listen(8000);
 //			}
 //		});
 //	}
-//	//-------------------------------------------------------------------------
-//	//Catch all 'OPTIONS' requests
-//	//TODO: Identify if OPTIONS could/should be expanded into self-documenting APIs, like 
-//	//http://zacstewart.com/2012/04/14/http-options-method.html or https://developers.helloreverb.com/swagger/
-//	if (request.method == 'OPTIONS') {
-//		console.log("OPTIONS request - handled");
-//		return send("{}", 200, {Allow: "HEAD,GET,POST,OPTIONS"});
-//	}
-	
-//	//Build the request's context before routing
-//	//(Who is the current user, what handler libraries are available, etc)
-//	buildContext(request, function(_context) {
-//		context = _context;
-//		
-//		//Process and route the request
-//		var url_parts = url.parse(request.url);
-//		var path = url_parts.pathname = url_parts.pathname.replace(/\/{2,}/,'/').replace(/\/$/,''); //Strip out any extra or trailing slashes
-//		console.log("-------------------------------------------------------------------------");
-//		console.log("Received a request for '"+path+"'");
-//		
-//		if (path == '') index();
-//		else if (m=/^\/activities\/?(.*)$/.exec(path)) activity_router.route(m[1]);
-//		else if (m=/^\/designs\/?(.*)$/.exec(path)) design_router.route(m[1]);
-//		else if (m=/^\/auth\/?(.*)$/.exec(path)) auth_router.route(m[1]);
-//		else send_error(new Activity.Error("Not found", 404, path));
-//	}, send_error );
-//}); //.listen(settings.serverport);
-
 
 //-----------------------------------------------------------------------------
 console.log("Server listening on port "+settings.serverport+"...");

@@ -44,7 +44,7 @@ var force = process.argv.shift();
 //Infrastructure
 var Activity = require("../lib/activity.js");
 var Sanitize = require("../lib/sanitizer.js");
-var bb_couch = require("../lib/bb_couch.js");
+var sync_couch = require("../lib/sync_couch.js");
 var fs = require("fs");
 var path = require("path");
 function fail(msg, code) { 	
@@ -59,7 +59,7 @@ var CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync(BASE_PATH + "/con
 
 //-----------------------------------------------------------------------------
 //Database connection
-Activity.Model.prototype.sync = Activity.Collection.prototype.sync = bb_couch.backboneSync(db_dsn);
+Activity.Model.prototype.sync = Activity.Collection.prototype.sync = sync_couch.backboneSync(db_dsn);
 
 //-----------------------------------------------------------------------------
 //Load the design

@@ -3,7 +3,7 @@
  */
 var _ = require('underscore');
 var Backbone = require('backbone');
-var bb_couch = require('../lib/bb_couch.js');
+var sync_couch = require('../lib/sync_couch.js');
 var settings = require('./settings.js');
 var Activity = require('../lib/activity.js');
 var User = require('../lib/user.js');
@@ -20,7 +20,7 @@ base_context.Activity = Activity;
 //------------------------------------------------------------------
 //Example: Define the 'MyExternal' model and collections
 var MyExternal = {};
-var myexternalsync = bb_couch(settings.myexternaldb);
+var myexternalsync = sync_couch(settings.myexternaldb);
 
 MyExternal.Model = Backbone.Model.extend({
 	idAttribute: '_id',
