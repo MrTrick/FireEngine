@@ -74,6 +74,8 @@ app.set('settings', settings);
 app.set('session', Session(settings.session));
 
 //Configure global middleware
+var checkAcls = require('./lib/acl')(settings.acl_rules);
+
 app.use(express.logger({immediate:true}));
 app.use(express.bodyParser());
 app.use(function(req, res, next) {
@@ -90,21 +92,18 @@ app.use(buildContext);
 //Give happy empty responses to any OPTIONS request for CORS
 app.options('*', function(req, res, next) { res.send(200, {}); });
 
-//Require authentication for some routes
-var requireUser = function(req, res, next) { if (req.user) next(); else next(new Activity.Error("Authenticated user required", 401)); }; 
-
 //Define site routes
 app.post('/auth/login', app_auth.login);
 app.post('/auth/logout', app_auth.logout);
-app.get('/auth/self', requireUser, app_auth.self);
-app.param('design', requireUser, app_design.loadDesign);
-app.get('/designs', requireUser, app_design.index);
-app.get('/designs/:design', requireUser, app_design.read);
-app.post('/designs/:design/fire/create', requireUser, app_design.create);
-app.param('activity', requireUser, app_activity.loadActivity);
-app.get('/activities', requireUser, app_activity.index);
-app.get('/activities/:activity', requireUser, app_activity.read);
-app.post('/activities/:activity/fire/:action', requireUser, app_activity.fire);
+app.get('/auth/self', checkAcls, app_auth.self);
+app.param('design', checkAcls, app_design.loadDesign);
+app.get('/designs', checkAcls, app_design.index);
+app.get('/designs/:design', checkAcls, app_design.read);
+app.post('/designs/:design/fire/create', checkAcls, app_design.create);
+app.param('activity', checkAcls, app_activity.loadActivity);
+app.get('/activities', checkAcls, app_activity.index);
+app.get('/activities/:activity', checkAcls, app_activity.read);
+app.post('/activities/:activity/fire/:action', checkAcls, app_activity.fire);
 
 //Handle errors
 app.use(function(error, req, res, next) {

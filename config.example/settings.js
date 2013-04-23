@@ -66,3 +66,16 @@ exports.auth = {
 	 * User logout - not used
 	 */
 };
+
+//-----------------------------------------------------------------------------
+//Define access rules
+exports.acl_rules = {
+	'_all' : [],
+	'/auth/self' : [],
+	'/designs' : [],
+	'/designs/:design' : [],
+	'/designs/:design/fire/create' : [],
+	'/activities' : [],
+	'/activities/:activity' : [],
+	'/activities/:activity/fire/:action' : []
+};
