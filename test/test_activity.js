@@ -63,6 +63,69 @@ exports.definition = {
 };
 
 /**
+ * Test activity functions
+ */
+exports.functions = {
+	/**
+	 * Create a test activity 
+	 */
+	setUp: function(ready) {
+		this.activity = new Activity.Model({
+			_id: 'testactivity',
+			_rev: '1-123456789012345678901234567890',
+			design: {
+				id: 'testdesign_v1',
+				name: 'Test Design',
+				version: 1,
+				states: ['opened', 'closed'],
+				create: { to: "opened" },
+				actions: [
+				    { id: 'close', from: ['opened'], to: ['closed'] },
+				    { id: 'open', from: ['closed'], to: ['open'] },
+				    { id: 'nop' }
+				]
+			},
+			state: ['opened'],
+			data: {},
+			roles: {
+				'creator': ['tuser'],
+				'approver': [],
+				'observer': ['otheruser', 'tuser'],
+				'not_tuser': ['otheruser', 'ehumperdink']
+			},
+			links: {},
+			history: [
+		        {
+		        	when: "2001-01-01T00:00:00+11:00",
+		        	message: "Created activity",
+		        	who: "tuser",
+		        	action: "create"
+		        }
+			]
+		});
+		ready();
+	},
+		
+	/**
+	 * Test the roles() function
+	 * @param t
+	 */
+	roles: function(t) {
+		t.expect(3);
+		t.deepEqual( this.activity.roles('tuser'), ['creator', 'observer'] );
+		t.deepEqual( this.activity.roles('otheruser'), ['observer', 'not_tuser'] );
+		t.deepEqual( this.activity.roles('nobody'), [] );
+		t.done();
+	}
+	
+	//TODO: Test all other functions in Activity
+
+};
+
+
+
+
+/**
  * Test the Activity utility functions 
  */
 exports.utilities = {
