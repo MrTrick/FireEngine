@@ -5,7 +5,7 @@
   "main": "app.js",
   "dependencies": {
     "JSV": "~4.0.2",
-    "backbone": "~0.9.9",
+    "backbone": "~1.0.0",
     "nano": "~3.3.6", 
     "underscore": "~1.4.3",
     "ldapauth": "~2.2.1",
