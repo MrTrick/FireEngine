@@ -15,8 +15,8 @@ var Activity = require('../lib/activity.js');
 exports.sync = {};
 
 // How does FireEngine access Activities? 
-var sync_couch = require("../lib/sync_couch.js");
-exports.sync.activity = sync_couch(exports.activity_db);
+var sync_activity = require("../lib/sync_activity.js");
+exports.sync.activity = sync_activity(exports.activity_db);
 
 //How does FireEngine access Designs?
 var sync_design = require("../lib/sync_design.js");
