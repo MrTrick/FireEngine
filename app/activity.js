@@ -61,6 +61,7 @@ exports.index = function(req, res, next) {
 	
 	activities.fetch({
 		success: function(activities) {
+			//TODO: Filter to those that the user may read
 			console.log("[Route] Sending "+activities.length+" activities.");
 			res.send(activities.toJSON()); 
 		},
