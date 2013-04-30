@@ -25,18 +25,18 @@ exports.sync.design = sync_design( require('fs').realpathSync( CONFIG_PATH + "de
 //How does FireEngine access Users?
 // (For the example config, just use some dummy users in an array)
 var users = [
-    {id:"adummy", display_name:"Andrew Dummy", email_primary: "fireengine.adummy@example.com", roles: ["admin"]},
-    {id:"bdummy", display_name:"Brian Dummy", email_primary: "fireengine.bdummy@example.com", roles: ["manager"]},
-    {id:"cdummy", display_name:"Caroline Dummy", email_primary: "fireengine.cdummy@example.com", roles: []}
+    {id:"adummy", display_name:"Andrew Dummy", email_primary: "fireengine.adummy@mindbleach.com", roles: ["admin"]},
+    {id:"bdummy", display_name:"Brian Dummy", email_primary: "fireengine.bdummy@mindbleach.com", roles: ["manager"]},
+    {id:"cdummy", display_name:"Caroline Dummy", email_primary: "fireengine.cdummy@mindbleach.com", roles: []}
 ];
 exports.sync.user = function(method, model, options) {
 	if (method == 'read' && model instanceof Backbone.Model) {
 		var user = _.find(users, function(u) { return u.id == model.id; });
-		if (user) options.success(model, user, options);
-		else options.error(model, new Activity.Error("No user found with id " + model.id, 404), options);
+		if (user) options.success(user);
+		else options.error(new Activity.Error("No user found with id " + model.id, 404));
 	} else {
 		console.error("[Sync] Illegal method/model on user sync", method);
-		options.error(model, new Activity.Error("Illegal method/model on user sync", 403), options);
+		options.error(new Activity.Error("Illegal method/model on user sync", 403));
 	}
 };
 

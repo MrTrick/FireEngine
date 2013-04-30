@@ -18,6 +18,19 @@ base_context.JSV = require('JSV').JSV.createEnvironment();
 base_context.Activity = Activity;
 
 //------------------------------------------------------------------
+//Example: Emailing
+var transport = require('nodemailer').createTransport('Sendmail');
+base_context.email = function(mailOptions, callback) {
+	mailOptions = _.extend({}, mailOptions, {
+		'from': "noreply-fireengine@example.com",
+		'subject': "[FireEngine] " + mailOptions.subject
+	});
+	console.log("Email transport", transport);
+	return transport.sendMail(mailOptions, callback);
+};
+
+
+//------------------------------------------------------------------
 //Example: Define the 'MyExternal' model and collections
 var MyExternal = {};
 var myexternalsync = sync_couch(settings.myexternaldb);
@@ -56,8 +69,7 @@ function buildContext(req, res, next) {
 	//      TO ASSIST DEBUGGING ONLY, DO NOT USE FOR REAL context.js!
 
 	
-	console.log("Identity: ", user_id);
-	
+	console.log("[Identity]", user_id);
 	req.context.user_id = user_id;
 	
 	//Load the user if identity known
@@ -65,9 +77,7 @@ function buildContext(req, res, next) {
 		var user = req.user = req.context.user = new User.Model({id:user_id});
 		user.fetch({
 			success: function() { next(); },
-			error: function(model, e) { 
-				next(e); 
-			}
+			error: function(model, e) { next(e); }
 		});
 	} else next();
 }

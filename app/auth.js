@@ -38,8 +38,6 @@ var Activity = require("../lib/activity.js");
  */
 exports.login = function(req, res, next) {
 	var credentials = req.body;
-	console.log("BODY IS: ", req.body);
-	
 	console.log("[Route] User " + credentials.username + " attempting login");
 	
 	req.app.get('settings').auth.login(credentials, {

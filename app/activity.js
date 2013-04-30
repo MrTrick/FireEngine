@@ -106,7 +106,7 @@ exports.fire = function(req, res, next) {
 	if (!action.allowed(req.context)) return next(new Activity.Error("Action '"+action_id+"' forbidden", 403));
 		
 	//Fire the given action - if successful output the updated activity.
-	console.log("Firing: Logging", req.body, req.context);
+	console.log("Firing: Logging", req.body);
 	action.fire(req.body, req.context, {
 		timeout: req.app.get('settings').fire_timeout, 
 		success: function() {

@@ -200,6 +200,7 @@ Auth = this.Auth = (function() {
 			
 			//Ensure that any session changes ... wait, this should be caught by 'change' 
 			this.model.on('login logout', this.render);
+			this.model.on('login logout', function() { Backbone.history.loadUrl(); });
 		},
 		events: {
 			'submit form': 'doLogin',
