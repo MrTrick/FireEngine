@@ -40,8 +40,13 @@ exports.loadActivity = function(req, res, next, id) {
 	activity.fetch({
 		//If fetched successfully, push the activity into the request
 		success: function(activity) {
-			req.activity = activity;
-			next();
+			//If the user is not allowed to read it, error
+			if (!activity.allowed('read', req.context)) {
+				next(new Activity.Error("Reading this activity not permitted", 403));
+			} else {						
+				req.activity = activity;
+				next();
+			}
 		},
 		//If failed to fetch, forward the error
 		error: function(activity, error) { next(error); }
@@ -61,7 +66,13 @@ exports.index = function(req, res, next) {
 	
 	activities.fetch({
 		success: function(activities) {
-			//TODO: Filter to those that the user may read
+			console.log("[Route] Read "+activities.length+" activities. Filtering...");
+			//Remove any activities that are not allowed to be read
+			activities.set( 
+				activities.filter(function(activity) { 
+					return activity.allowed('read', req.context); 
+				})
+			);
 			console.log("[Route] Sending "+activities.length+" activities.");
 			res.send(activities.toJSON()); 
 		},
@@ -75,7 +86,7 @@ exports.index = function(req, res, next) {
  */
 exports.read = function(req, res, next) {
 	console.log("[Route] Sending activity '"+req.activity.id+"'");
-	res.send(req.activity);
+	res.send(req.activity.toJSON());
 };
 
 /**

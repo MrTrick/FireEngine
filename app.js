@@ -74,7 +74,7 @@ app.set('settings', settings);
 app.set('session', Session(settings.session));
 
 //Configure global middleware
-var checkAcls = require('./lib/acl')(settings.acl_rules);
+var checkAcls = require('./lib/allowed.js').systemAccess(settings.acl_rules);
 
 app.use(express.logger({immediate:true}));
 app.use(express.bodyParser());
@@ -104,37 +104,29 @@ app.param('activity', checkAcls, app_activity.loadActivity);
 app.get('/activities', checkAcls, app_activity.index);
 app.get('/activities/:activity', checkAcls, app_activity.read);
 app.post('/activities/:activity/fire/:action', checkAcls, app_activity.fire);
+app.get('/', function(req, res, next) {
+	res.send({api: {
+		"GET /": "This page",
+		"GET /activities" : "Fetch all activities",
+		"GET /activities?{querystring}" : "TODO: Fetch some subset of activities, filtered by query",
+		"GET /activities/:view" : "TODO: Fetch some pre-made view?",
+		"GET /activities/:id" : "Fetch an activity",
+		"POST /activities/:id/fire/:action" : "Fire an action on the activity with the given POST data, and return the updated activity",
+		"GET /designs" : "Fetch available designs",
+		"GET /designs/:design" : "Fetch a design",
+		"POST /designs/:design/fire/create" : "Create a new activity of that design with the given POST data, and return the new activity"
+	}});
+});
 
 //Handle errors
 app.use(function(error, req, res, next) {
 	console.error("Error: " + error);
 	res.send({error: error}, error.status_code || 500);
+	if (error.stack) console.error(error.stack);
 	console.error(error, error.status_code, "for", req.method, req.url);
 	if (error.inner) console.error("Inner:", error.inner);	
 });
 
 app.listen(8000);
-
-//TODO: Replace index
-//	/**
-//	 * Top-level handler. Returns human-readable (ish) reflective API information 
-//	 */
-//	function index() {
-//		send({
-//			api: {
-//				"GET /": "This page",
-//				"GET /activities" : "Fetch all activities",
-//				//TODO: Implement
-//				//"/activities?{querystring}" : "Fetch some subset of activities, filtered by query",
-//				//"GET /activities/:view" : "Fetch some pre-made view,"
-//				"GET /activities/:id" : "Fetch an activity",
-//				"POST /activities/:id/fire/:action" : "Fire an action on the activity with the given POST data, and return the updated activity",
-//				"GET /designs" : "Fetch available designs",
-//				"GET /designs/:design" : "Fetch a design",
-//				"POST /designs/:design/fire/create" : "Create a new activity of that design with the given POST data, and return the new activity"
-//			}
-//		});
-//	}
-
 //-----------------------------------------------------------------------------
 console.log("Server listening on port "+settings.serverport+"...");
