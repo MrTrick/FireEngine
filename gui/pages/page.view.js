@@ -11,7 +11,10 @@
 	//View: One activity, stand-alone
 	//TODO: Add read control, and customisation of view from design?
 	var Activity_View = Backbone.Marionette.ItemView.extend({
-		template: _.template("<dt>State</dt><dd>{{ state }}</dd><dt>Data</dt><dd>{{ data }}</dd><dt>Links</dt><dd>{{ links }}</dd>"),
+		template: _.template("<dt>State</dt><dd>{{ state }}</dd>" +
+				"<dt>Data</dt><dd>{{ data }}</dd>" +
+				"<dt>Links</dt><dd>{{ links }}</dd>" +
+				"<dt>Roles</dt><dd>{{ roles }}</dd>"),
 		templateHelpers: function() {
 			var rendered_data = [];
 			_.each(this.model.get('data'), function(el, key) { 
@@ -21,9 +24,14 @@
 			_.each(this.model.get('links'), function(el, key) { 
 				rendered_links.push("<li><b>"+_.escape(key)+"</b> "+_.escape(el)+"</li>");
 			});
+			var rendered_roles = [];
+			_.each(this.model.get('roles'), function(el, key) {
+				rendered_roles.push("<li><b>"+_.escape(key)+"</b> "+_.escape(el.join(", ")));
+			});
 			return {
 				data: rendered_data.length>0 ? "<dl>"+rendered_data.join("")+"</dl>" : "<i>None</i>",
-				links: rendered_links.length>0 ? "<ul>"+rendered_links.join("")+"</ul>" : "<i>None</i>"
+				links: rendered_links.length>0 ? "<ul>"+rendered_links.join("")+"</ul>" : "<i>None</i>",
+				roles: "<ul>"+rendered_roles.join("")+"</ul>"
 			};
 		},
 		tagName: 'dl'
@@ -71,7 +79,7 @@
 		tagName: 'ul',
 		itemView: Backbone.Marionette.ItemView.extend({
 			tagName: 'li',
-			template: _.template("{{ message }} <span style='font-style:italic' title='{{ when }}'>- {{ since }} ago</span>"),
+			template: _.template("{{ message }} <span style='font-style:italic' title='{{ when }}'>- {{ since }} ago by {{ who }}</span>"),
 			templateHelpers: function() { return {since:timeSince(Date.parse(this.model.get('when')))}; }
 		})
 	});
