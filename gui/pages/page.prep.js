@@ -14,7 +14,12 @@
 			"<a id=\"cancel\" href=\"#\">Back</a>"
 		),
 		events: { 
-			"click #cancel" : function(e) { e.preventDefault(); this.model.trigger('prep:cancel', "Action cancelled"); }},		
+			"click #cancel" : function(e) { 
+				e.preventDefault(); 
+				this.model.trigger('prep:cancel', "Action cancelled");
+				_.defer(function() {Backbone.history.loadUrl(); });
+			}
+		},		
 		regions: { 
 			body: "#body"
 		},
@@ -63,7 +68,6 @@
 			action.oncefirst( eventlisteners = {
 				'prep:cancel' : function(msg) {
 					FlashManager.info("Cancelled action '"+action.get('name')+"'. " + msg);
-					//Go back to the previous view (activity, or create)
 					_.defer(function() {Backbone.history.loadUrl(); });					
 				},
 				'prep:error' : function(msg) {

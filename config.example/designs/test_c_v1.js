@@ -31,9 +31,9 @@ require("underscore").extend(exports, {
 					'submit' : function(e) {
 						e.preventDefault();
 						console.log("Form submitted");
-						var data = {}; 
-						_.each( this.$("form").serializeArray(), function(el) { data[el.name] = el.value; } );
-						complete(data);
+						var inputs = {}; 
+						_.each( this.$("form").serializeArray(), function(el) { inputs[el.name] = el.value; } );
+						complete(inputs);
 					}
 				}
 			}))();
@@ -60,7 +60,9 @@ require("underscore").extend(exports, {
 				},
 				success: function() { 
 					console.log("Old name is:", doc.get('name'));
-					complete({ data:_.extend(inputs, {doc_rev:doc.get('_rev'), old_name:doc.get('name')} ) });
+					data = { new_name: inputs.name, old_name: doc.get('name') };
+					links = { external_doc: inputs.doc_id };
+					complete();
 				}
 			});
 		},
@@ -75,10 +77,9 @@ require("underscore").extend(exports, {
 	    	"allowed" : function() { return true; /* TODO: This should restrict to particular users. */ },
 	    	"fire" : function() {
 	    		console.log("inside (test_c) "+activity.id+"/approve/fire");
-	    		var doc_id = data.doc_id;
-	    		var name = data.name;
+	    		var doc_id = links.external_doc;
+	    		var name = data.new_name;
 	    		
-	    		//TODO: Check rev somewhere?
 	    		doc = new MyExternal.Model({_id: doc_id});
 				doc.fetch({
 					error: function(doc,errors) { 
