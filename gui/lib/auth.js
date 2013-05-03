@@ -6,6 +6,12 @@ Auth = this.Auth = (function() {
 	var auth = {};
 	
 	//////////////////////////////////////////////////////////////////////////
+	//User handling
+	//////////////////////////////////////////////////////////////////////////
+	//(User is automatically loaded/unloaded by session)
+	auth.user = new User.Model({});
+	
+	//////////////////////////////////////////////////////////////////////////
 	//Session handling
 	//////////////////////////////////////////////////////////////////////////
 	
@@ -94,6 +100,41 @@ Auth = this.Auth = (function() {
 		},
 		
 		/**
+		 * Try to load the session from local storage
+		 * Will fail if no session exists, or if it has expired
+		 */
+		load: function(options) {
+			options = options ? _.clone(options) : {};
+			var success_handler = options.success, error_handler = options.error;
+			
+			//Try to restore the session
+			var sess = this, sess_str = window.sessionStorage['session'], sess_json;
+			if (!sess_str) return false; //No local session
+			try { sess_json = JSON.parse(sess_str); } catch (e) { return false; } //Invalid local session
+			if (!sess.set(JSON.parse(sess_str))) return false; //Invalid local session
+			if (sess.get('expiry') < Auth.getServerTime()) {
+				sess.logout();
+				return false; //Expired local session
+			}
+			
+			//Restored session, now fetch the user object
+			auth.user.fetch({
+				success: function() {
+					FlashManager.info("Logged in as " + sess.get("identity"));
+					sess.trigger('login', sess, sess.get('identity'), options);
+					if (success_handler) success_handler(sess, sess.attributes, options);
+				},
+				error: function(user, xhr) {
+					if (xhr.status==500) FlashManager.error('Server error, please try again later.');
+					else FlashManager.error(JSON.parse(xhr.responseText).error);
+					if (error_handler) error_handler(sess, xhr, options);
+				}
+			});
+			
+			return this;
+		},
+		
+		/**
 		 * Perform a login operation.
 		 * Any credentials required for authentication should be included in the data:{} object in the options parameter.
 		 * (eg username, password. Other server authentication methods might require different info)
@@ -108,9 +149,18 @@ Auth = this.Auth = (function() {
 
 				FlashManager.info("Logged in as " + sess.get("identity"));
 				
+				//Store the session locally
+				window.sessionStorage['session'] = JSON.stringify(sess);
+				
 				//On successful login, trigger a login(session, identity, options) event
-				sess.trigger('login', sess, sess.get('identity'), options);
-				if (success_handler) success_handler(sess, resp, options);
+				//(But first fetch the user)
+				auth.user.fetch({
+					success: function() { 
+						sess.trigger('login', sess, sess.get('identity'), options);
+						if (success_handler) success_handler(sess, resp, options);
+					},
+					error: options.error
+				});
 			};
 			options.error = function(sess, xhr, options) {
 				if (xhr.status==500) FlashManager.error('Server error, please try again later.');
@@ -135,8 +185,10 @@ Auth = this.Auth = (function() {
 			if (!identity) return; //Already logged out, don't trigger again.
 
 			//Clear all local information about the session
-			this.attributes = {};
+			this.clear();
 			this._previousAttributes = {};
+			auth.user.clear();
+			window.sessionStorage.clear();
 
 			//On logout, trigger a logout(model, identity, options) event
 			this.trigger('logout', this, identity, options);
@@ -198,7 +250,7 @@ Auth = this.Auth = (function() {
 		initialize: function(options) {
 			_.bindAll(this);
 			
-			//Ensure that any session changes ... wait, this should be caught by 'change' 
+			//Ensure that any session changes ... wait, this should be caught by 'change'
 			this.model.on('login logout', this.render);
 			this.model.on('login logout', function() { Backbone.history.loadUrl(); });
 		},
@@ -244,11 +296,16 @@ Auth = this.Auth = (function() {
 		if (auth.session) {
 			console.warn("Session already started");
 		} else {
-			auth.session = new Session({}, options);
-			auth.sessionView = new SessionView({model:auth.session});
 			addServerTimeHook();
 			addAuthenticationHook();
-			console.log("Started session");
+			
+			auth.session = new Session({}, options);
+			auth.sessionView = new SessionView({model:auth.session});
+			
+			if (auth.session.load()) //Try to load the session from storage
+				console.log("Restored session; "+auth.session.get('identity'));
+			else
+				console.log("Started session");
 		}
 		return auth.session;
 	};

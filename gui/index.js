@@ -3,12 +3,13 @@
  */
 //Configure!
 Activity.baseUrl(settings.serverUrl);
+User.baseUrl(settings.serverUrl);
 App.context = settings.environment;
 var session = Auth.startSession({
 	loginUrl: Activity.baseUrl()+'auth/login',
 	logoutUrl: Activity.baseUrl()+'auth/logout'
 });
-
+App.user = App.context.user = Auth.user;
 
 var Debug = {};
 Debug.View = Backbone.View.extend({

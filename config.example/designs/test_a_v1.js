@@ -14,7 +14,7 @@ require("underscore").extend(exports, {
 		{
 			"id": "close",
 			"name": "Close",
-			"allowed": function() { return this.can_close; },
+			"allowed": ['admin', 'creator'], //Only admin users or the creator can close 
 			"from": ["opened"],
 			"to": ["closed"]
 		},
