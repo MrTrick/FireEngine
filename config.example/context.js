@@ -19,7 +19,8 @@ base_context.Activity = Activity;
 
 //------------------------------------------------------------------
 //Example: Emailing
-var transport = require('nodemailer').createTransport('Sendmail');
+//var transport = require('nodemailer').createTransport('Sendmail');
+var transport = require('nodemailer').createTransport('SMTP', { 'host': 'postoffice.eng.uts.edu.au' });
 base_context.email = function(mailOptions, callback) {
 	mailOptions = _.extend({}, mailOptions, {
 		'from': "noreply-fireengine@example.com",

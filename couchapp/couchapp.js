@@ -44,9 +44,16 @@ ddoc.views.by_design = {
 	map: function(doc) { emit(doc.design.id || doc.design, null); },
 	reduce: '_count'
 };
-ddoc.views.activities = {
-	//For now, assume that having a 'design' designates a document being an activity
+
+//All activities (For now, assume that having a 'design' designates a document being an activity)
+ddoc.views.all = {
 	map: function(doc) { if (doc.design) emit(doc._id, null); },
+	reduce: '_count'
+};
+
+//Activities not in a closed state (For now, assume that having a 'design' designates a document being an activity)
+ddoc.views.active = {
+	map: function(doc) { if (doc.design && doc.state && doc.state.indexOf('closed') == -1) emit(doc._id, null); },
 	reduce: '_count'
 };
 

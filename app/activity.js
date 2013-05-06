@@ -54,17 +54,31 @@ exports.loadActivity = function(req, res, next, id) {
 };
 
 /**
- * Read all activities
+ * Alias for /activities/view/active
  * GET /activities
  */
 exports.index = function(req, res, next) {
-	console.log("[Route] Fetching all active activities");
+	req.params.view = 'active';
+	return exports.view(req, res, next);
+};
+
+/**
+ * Fetch a list of activities from the given view
+ * GET /activities/view/:view
+ */
+exports.view = function(req, res, next) {
+	var view = req.params.view;
+	console.log("[Route] Fetching activities in view '"+view+"'");
 	var activities = new Activity.Collection();
 	
 	//TODO: Use req.query to implement querying.
 	//TODO: Set default query behaviour, like return only activities that don't have state 'closed'
 	
 	activities.fetch({
+		view: { 
+			design: 'fireengine',
+			name: view //Fetch from the given view. If the view name is incorrect couchdb will reject it
+		},
 		success: function(activities) {
 			console.log("[Route] Read "+activities.length+" activities. Filtering...");
 			//Remove any activities that are not allowed to be read

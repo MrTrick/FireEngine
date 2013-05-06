@@ -102,6 +102,7 @@ app.get('/designs/:design', checkAcls, app_design.read);
 app.post('/designs/:design/fire/create', checkAcls, app_design.create);
 app.param('activity', checkAcls, app_activity.loadActivity);
 app.get('/activities', checkAcls, app_activity.index);
+app.get('/activities/view/:view', checkAcls, app_activity.view);
 app.get('/activities/:activity', checkAcls, app_activity.read);
 app.post('/activities/:activity/fire/:action', checkAcls, app_activity.fire);
 app.get('/', function(req, res, next) {
