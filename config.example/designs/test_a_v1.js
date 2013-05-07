@@ -1,8 +1,8 @@
 /**
  * 
  */
-if (typeof exports === "undefined") throw "Unexpected context - expected to be called from node.js";
-require("underscore").extend(exports, {
+if (typeof module !== "object") throw "Unexpected context - expected to be called from node.js";
+module.exports = {
 	"id": "test_a_v1",
 	"name": "Test A",
     "version": 1,
@@ -35,4 +35,4 @@ require("underscore").extend(exports, {
 		    "name": "Do nothing"
         }
 	 ]
-});
+};

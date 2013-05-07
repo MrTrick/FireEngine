@@ -53,6 +53,7 @@ var Session = require("./lib/session.js");
 //By default, look in the 'config' subfolder. Or the 'config.example' subfolder, if 'config' is not defined.
 GLOBAL.CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config/" : "./config.example/");
 var settings = require(CONFIG_PATH + "settings.js");
+if (CONFIG_PATH == './config.example/') console.warn("Warning: Using configuration from ./config.example/");
 	
 //Have Activities and designs use the correctly configured sync functions 
 Activity.Model.prototype.sync = Activity.Collection.prototype.sync = settings.sync.activity;
