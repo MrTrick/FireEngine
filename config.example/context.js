@@ -16,6 +16,7 @@ base_context._ = _;
 base_context.Backbone = Backbone;
 base_context.JSV = require('JSV').JSV.createEnvironment();
 base_context.Activity = Activity;
+base_context.User = User;
 
 //------------------------------------------------------------------
 //Example: Emailing
