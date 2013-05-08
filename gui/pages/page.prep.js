@@ -124,6 +124,7 @@
 			//If the handler returns a view object, it must be a view. Show it in the layout.
 			if (_.isObject(out) && _.isFunction(out.render)) {
 				handler_is_view = true;
+				if (!out.trigger) out.trigger = function() {}; //Marionette expects a trigger function, add if missing
 				//Wait until the outer has rendered, then show.
 				this.on('render', function() {
 					this.body.show(out);
