@@ -100,6 +100,7 @@ app.get('/auth/self', checkAcls, app_auth.self);
 app.param('design', checkAcls, app_design.loadDesign);
 app.get('/designs', checkAcls, app_design.index);
 app.get('/designs/:design', checkAcls, app_design.read);
+app.get('/designs/:design/graph', checkAcls, app_design.graph);
 app.post('/designs/:design/fire/create', checkAcls, app_design.create);
 app.param('activity', checkAcls, app_activity.loadActivity);
 app.get('/activities', checkAcls, app_activity.index);

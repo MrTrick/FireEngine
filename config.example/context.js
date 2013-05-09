@@ -20,8 +20,8 @@ base_context.User = User;
 
 //------------------------------------------------------------------
 //Example: Emailing
-//var transport = require('nodemailer').createTransport('Sendmail');
-var transport = require('nodemailer').createTransport('SMTP', { 'host': 'postoffice.eng.uts.edu.au' });
+var transport = require('nodemailer').createTransport('Sendmail');
+//var transport = require('nodemailer').createTransport('SMTP', { 'host': 'MYSERVER' }); //Alternatively SMTP directly - will throw error if fails.
 base_context.email = function(mailOptions, callback) {
 	mailOptions = _.extend({}, mailOptions, {
 		'from': "noreply-fireengine@example.com",
@@ -71,7 +71,7 @@ function buildContext(req, res, next) {
 	//      TO ASSIST DEBUGGING ONLY, DO NOT USE FOR REAL context.js!
 
 	
-	console.log("[Identity]", user_id);
+	console.log("[Context] identity:", user_id);
 	req.context.user_id = user_id;
 	
 	//Load the user if identity known

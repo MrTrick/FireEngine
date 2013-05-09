@@ -30,11 +30,14 @@
  
 1. Start the server with `node app.js` or `always app.js`
 
-1. Open the gui page to interact with the FireEngine system.
+1. Open the Activity Manager GUI eg `localhost/FireEngine/` to interact with the FireEngine system.
+
+
+
 
 ## Creating a new Design
 
-A Design dictates the behaviour of Activities associated with that Design.
+A Design dictates the behaviour of Activities created from that Design.
 
 ### Storage & Definition
 Designs are stored in FireEngine as node modules.
@@ -54,33 +57,31 @@ A simple design module file looks like:
 For maintainability, the file **should** have the same name as the design id.
 From this point, only the design itself *(the exported object)* will be discussed.
 
-### Creating Designs
-
-#### Basic Design ####
+### Basic Design (basic_v1.js) ###
 
 Here is a design definition for a simple two-state Activity;
 
 	//Design definition
     {
-      id: 'basic_v1',
-	  name: 'Basic Design',
-      version: 1,
-      states: ['opened', 'closed'],
-      create: {
-        to: ['opened']
-      },
-      actions: [
-        { 
-          id: 'close',
-          from: ['opened'], 
-          to: ['closed'] 
+        id: 'simple_v1',
+	    name: 'Simple Design',
+        version: 1,
+        states: ['opened', 'closed'],
+        create: {
+            to: ['opened']
         },
-        { 
-          id: 'open',
-          from: ['closed'], 
-          to: ['opened'] 
-        }
-      ]
+        actions: [
+            { 
+                id: 'close',
+                from: ['opened'], 
+                to: ['closed'] 
+            },
+            { 
+                id: 'open',
+                from: ['closed'], 
+                to: ['opened'] 
+            }
+        ]
     }
 
 A design definition needs, at a minimum;
@@ -93,6 +94,129 @@ A design definition needs, at a minimum;
 * actions - *An array of Actions that may be fired on the Activity*
 
 Activities are modified by firing Actions. The basic Design above has two; `open` and `close`.
+
+
+
+
+## Creating an Activity ##
+
+### Graphically ###
+
+1. From the Activity Manager, click `Create New`.
+1. Click on the chosen Design
+1. If the `create` Action has a prepare handler, you may have to fill in and submit a form.
+1. The Activity will be created, and you will be directed to a page displaying it.
+1. You will notice a `history` element logging the page creation.
+
+### Directly ###
+
+To create a new Activity from a Design, send a create request to FireEngine;
+
+    URL: {{server}}/designs/{{design id}}/fire/create
+    METHOD: POST
+    TYPE: application/json
+    DATA: (JSON-encoded object containing the 'create' action's inputs)
+
+The Activity will be created and returned, eg;
+
+	{
+		"_id": "9ee62d6d0d8110314037f164340028a3",
+		"_rev": "1-95279c07b4f2fe71d14d730b9e6a9e6a",
+		"design": "simple_v1",
+		"state": ["opened"],
+		"data": {},
+		"roles": {
+			"creator": ["testuser"],
+			"actor": ["testuser"]
+		},
+		"links": {},
+		"history": [
+			{
+				"when": "2013-05-09T01:19:04.286Z",
+				"message": "Created",
+				"action": "create",
+				"who": "testuser"
+			}
+		]
+	}
+
+### Structure ###
+
+An Activity contains;
+
+* _id - *A unique identifier, either set by the Design or automatically generated*
+* _rev - *An internal couchdb variable to prevent race conditions*
+* state - *The current state or states of the Activity*
+* data - *An area for any custom data to be stored by the Activity*
+* roles - *A map of users by contextual Activity role. 
+  * The 'creator' and 'actor' roles are automatically maintained, Actions can set other roles.
+* links - *A map of external documents by named relationships.*
+  * **Not implemented yet:** Special treatment for 'parent' and 'children'
+  * **Not implemented yet:** Pre-loading of linked documents before invoking fire handlers.
+* history - *A list of actions that have been fired on the Activity, including 'create'.*
+  * Each item contains `when`, `message`, `action`, `who`.
+  * The `message` field can be set by that Action fire handler.
+
+
+
+
+
+## Firing Actions ##
+
+### Graphically ###
+
+1. From the Activity Manager, click on an Activity. 
+1. Click on one of the fireable (visible) Actions.
+1. If that Action has a prepare handler, you may have to fill in and submit a form.
+1. The Action will be fired on that Activity, and it will be updated.
+1. You will be directed back to the Activity. A `history` element will have logged the firing.
+
+### Directly ###
+
+To fire an Action on an Activity, send a fire request to FireEngine;
+
+    URL: {{server}}/activities/{{activity id}}/fire/{{action id}}
+    METHOD: POST
+    TYPE: application/json
+    DATA: (JSON-encoded object containing the action's inputs)
+
+The updated Activity will be returned, eg;
+
+	{
+		"_id": "9ee62d6d0d8110314037f164340028a3",
+		"_rev": "2-9dbe427d56a1708ed386945f0e630826",
+		"design": "simple_v1",
+		"state": ["closed"],
+		"data": {},
+		"roles": {
+			"creator": ["testuser"],
+			"actor": ["testuser", "testadmin"]
+		},
+		"links": {},
+		"history": [
+			{
+				"when": "2013-05-09T01:19:04.286Z",
+				"message": "Created",
+				"action": "create",
+				"who": "testuser"
+			},
+			{
+				"when": "2013-05-09T02:00:56.745Z",
+				"message": "Fired action Close",
+				"action": "close",
+				"who": "testadmin"
+			}
+		]
+	}
+
+From the Activity object history, you can see that the `"testuser"` user created the Activity, and the `"testadmin"` user fired the `close` Action upon it.
+
+
+
+
+
+## Reference ##
+TODO: Put in separate files
 
 #### Activity: States ####
 

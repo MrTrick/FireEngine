@@ -74,6 +74,15 @@ exports.read = function(req, res, next) {
 };
 
 /**
+ * Return the graph for the given design
+ * GET /designs/:design/graph  
+ */
+exports.graph = function(req, res, next) {
+	console.log("[Route] Generating graph for design '"+req.design.id+"'");
+	res.send(req.design.graph());
+};
+
+/**
  * Create a new activity from the given design
  * POST /designs/:design/fire/create
  */
