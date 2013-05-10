@@ -6,17 +6,34 @@
 	if (!App.Page) App.Page = {};
 	
 	//View: Collection of designs
-	var Design_List = Backbone.Marionette.CollectionView.extend({
-		tagName: 'ul',
+	var Design_List = Backbone.Marionette.CompositeView.extend({
+		tagName: 'table',
+		className: 'table',
+		template: _.template('<thead><tr><th>Design</th><th> </th></thead><tbody></tbody>'),
+		itemViewContainer: 'tbody',
 		itemView: Backbone.Marionette.ItemView.extend({
-			tagName: 'li',
-			template: _.template("<a href=\"#\">{{ name }}</a>"),
-			events: { "click a": 'run'},
-			run: function(e) {
+			tagName: 'tr',
+			template: _.template('<td><a id="create" href="#">{{ name }}</a></td>'+
+				'<td><a id="diagram_toggle" href="#">Show diagram</a><div style="display:none;" id="diagram_content"><img src="{{ graph_url }}" /></div></td>'
+			),
+			templateHelpers: function() {
+				return { graph_url: this.model.url() + '/graph' };
+			},
+			events: {
+				"click #create": 'create',
+				"click #diagram_content,#diagram_toggle": 'toggle'
+			},
+			create: function(e) {
 				e.preventDefault();
 				App.main.show(new App.Page.Prep({action:this.model.action('create')}));
-			}	
+			},
+			toggle: function(e) {
+				e.preventDefault();
+				this.$('#diagram_content,#diagram_toggle').slideToggle(500);
+			}
 		}),
+		emptyView: Backbone.Marionette.ItemView.extend({ tagName: 'tr', template: _.template("<td colspan=2><i>Loading...</i></td>") }),
+		
 		//Display only permitted actions
 		//TODO: Same code as in page.view.js. Merge? Not quite the same - collection is designs. 
 		showCollection: function(){

@@ -30,6 +30,7 @@
  * Parts of the application concerned with handling design requests
  */
 var Activity = require("../lib/activity.js");
+var exec = require('child_process').exec;
 
 /**
  * Used with app.param to pre-load any referenced design into the request
@@ -79,7 +80,16 @@ exports.read = function(req, res, next) {
  */
 exports.graph = function(req, res, next) {
 	console.log("[Route] Generating graph for design '"+req.design.id+"'");
-	res.send(req.design.graph());
+	
+	var child = exec('neato -Tpng', { encoding: 'binary' },
+		function(error, stdout, sderr) {
+			if (error) next(error);
+			res.set('Content-Type', 'image/png');
+			res.end(stdout, 'binary');
+		}
+	);
+	//Send the graph information to be rendered
+	child.stdin.end( req.design.graph() );
 };
 
 /**
