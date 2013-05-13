@@ -6,7 +6,7 @@ module.exports = {
 	//Basic information about the activity
 	id: "simple_v1",
     version: 1,
-	name: "Simple Activity",
+	name: "Example: Simple Activity",
 	description: "This is the simplest kind of useful activity, open or closed, with no special behaviour.",
 	
 	//The set of states the Activity can occupy
