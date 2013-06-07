@@ -30,6 +30,7 @@
  * Parts of the application concerned with handling activity requests
  */
 var Activity = require("../lib/activity.js");
+var Errors = require("../lib/errors.js");
 
 /**
  * Used with app.param to pre-load any referenced activity into the request
@@ -42,7 +43,7 @@ exports.loadActivity = function(req, res, next, id) {
 		success: function(activity) {
 			//If the user is not allowed to read it, error
 			if (!activity.allowed('read', req.context)) {
-				next(new Activity.Error("Reading this activity not permitted", 403));
+				next(new Errors[req.context&&req.context.user ? 'Forbidden' : 'Unauthorized']("Reading this activity not permitted") );
 			} else {						
 				req.activity = activity;
 				next();
@@ -114,10 +115,10 @@ exports.fire = function(req, res, next) {
 	console.log("[Route] Firing action '"+action_id+"' on activity '"+activity.id+"'");
 	
 	var action = activity.action(req.param('action'));
-	if (!action) return next(new Activity.Error("No such action '"+action_id+"'", 404));
+	if (!action) return next(new Errors.NotFound("No such action '"+action_id+"'"));
 	
 	//Check authorisation				
-	if (!action.allowed(req.context)) return next(new Activity.Error("Action '"+action_id+"' forbidden", 403));
+	if (!action.allowed(req.context)) return next(new Errors.Forbidden("Action '"+action_id+"' forbidden"));
 		
 	//Fire the given action - if successful output the updated activity.
 	console.log("Firing: Logging", req.body);

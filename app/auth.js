@@ -31,6 +31,7 @@
  */
 
 var Activity = require("../lib/activity.js");
+var Errors = require("../lib/errors.js");
 
 /**
  * Check the user's authentication against the adapter,
@@ -79,5 +80,5 @@ exports.self = function(req, res, next) {
 	if (req.user) 
 		res.send(req.user.toJSON());
 	else
-		next(new Activity.Error("No identity given", 401));
+		next(new Errors.Unauthorized());
 };

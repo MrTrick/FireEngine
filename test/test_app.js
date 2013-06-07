@@ -33,6 +33,7 @@ var _ = require("underscore");
 var Activity = require("../lib/activity.js");
 var AppActivity = require("../app/activity.js");
 var User = require("../lib/user.js");
+var Errors = require("../lib/errors.js");
 
 var activity_skeleton = {
 	design: {
@@ -78,7 +79,7 @@ exports.activity = {
 			process.nextTick(function() {
 				data = activity_data[parseInt(model.id)]; 
 				if (data) options.success(data);
-				else options.error(new Activity.Error("Not found", 404));
+				else options.error(new Errors.NotFound());
 			});
 		};
 		ready();
@@ -111,6 +112,7 @@ exports.activity = {
 				var req = {};
 				var next = function(error) {
 					t.ok(error, "Read not permitted");
+					t.ok(error instanceof Errors.Unauthorized, 'Expect an unauthorized response');
 					t.equal(error.message, "Reading this activity not permitted");
 					t.done();
 				};
@@ -121,6 +123,7 @@ exports.activity = {
 		    	var req = { context: { user: new User.Model({ id: 'fred', roles: ['noob'] }) } };
 		    	var next = function(error) {
 					t.ok(error, "Read not permitted");
+					t.ok(error instanceof Errors.Forbidden, 'Expect a forbidden response');
 					t.equal(error.message, "Reading this activity not permitted");
 					t.done();
 				};

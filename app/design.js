@@ -30,6 +30,7 @@
  * Parts of the application concerned with handling design requests
  */
 var Activity = require("../lib/activity.js");
+var Errors = require("../lib/errors.js");
 var exec = require('child_process').exec;
 
 /**
@@ -101,10 +102,10 @@ exports.create = function(req, res, next) {
 
 	var design = req.design;
 	var action = design.action('create');
-	if (!action) return next(new Activity.Error("Design error - no create action", 500, design.id));
+	if (!action) return next(new Errors.ServerError("Design error - no create action: ", design.id));
 	
 	//Check authorisation
-	if (!action.allowed(req.context)) return next(new Activity.Error("Create forbidden", 403, design.id));
+	if (!action.allowed(req.context)) return next(new Errors.Forbidden("Create forbidden", design.id));
 		
 	//Fire the create action - if successful output the newly-created activity
 	action.fire(req.body, req.context, {

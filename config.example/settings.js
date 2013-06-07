@@ -33,10 +33,10 @@ exports.sync.user = function(method, model, options) {
 	if (method == 'read' && model instanceof Backbone.Model) {
 		var user = _.find(users, function(u) { return u.id == model.id; });
 		if (user) options.success(user);
-		else options.error(new Activity.Error("No user found with id " + model.id, 404));
+		else options.error(new Errors.NotFound("No user found with id " + model.id));
 	} else {
 		console.error("[Sync] Illegal method/model on user sync", method);
-		options.error(new Activity.Error("Illegal method/model on user sync", 403));
+		options.error(new Errors.Forbidden("Illegal method/model on user sync"));
 	}
 };
 
@@ -58,7 +58,7 @@ exports.auth = {
 		if (user && credentials.password == user.id) {
 			options.success(user.id);
 		} else {
-			options.error(new Activity.Error("Incorrect credentials", 403));
+			options.error(new Errors.Unauthorized("Incorrect credentials"));
 		}
 	}
 

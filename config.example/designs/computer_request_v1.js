@@ -84,7 +84,7 @@ module.exports = {
 			fire: function() {
 				//Set the nominated approver
 				//TODO: Check existence using EBAT Person instead of User
-				if (!inputs.approver) error(new Activity.Error("Invalid approver"));
+				if (!inputs.approver) error(new Errors.ServerError("Invalid approver"));
 				var approver = new User.Model({id:inputs.approver});
 				user.fetch({
 					success: function() {
