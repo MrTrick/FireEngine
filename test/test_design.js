@@ -78,7 +78,6 @@ exports.definition = {
 			t.notEqual( action.validate( {"from": null} ), null, "From; null not ok" );
 			t.equal( action.validate( {"to": ["a","b","c"]} ), null, "To; unique array ok" );
 			t.notEqual( action.validate( {"to": ["a","b","b"]} ), null, "To; non-unique array not ok" );
-			t.notEqual( action.validate( {"allowed": ""}), null, "Allowed; empty string not ok");
 			t.equal( action.validate( {"allowed": "console.log('hi!');"}), null, "Allowed; string ok");
 
 			t.done();
@@ -167,7 +166,7 @@ exports.validation = {
 		var designs = new Activity.Design.Collection();
 		designs.on('error', function(designs, error) { t.done(error); });
 		designs.fetch({ success: function(designs) {
-			t.equal(designs.length, 4, "Expect 4 designs");
+			t.equal(designs.length, 7, "Expect 7 designs");
 			
 			designs.each(function(design) {
 				//Check built-in validation

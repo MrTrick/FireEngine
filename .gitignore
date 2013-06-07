@@ -2,10 +2,8 @@
 ## Project-specific
 ###################
 node_modules
-config_*
-config
+config*
 gui/settings.js
-prototypes
 
 #################
 ## Eclipse

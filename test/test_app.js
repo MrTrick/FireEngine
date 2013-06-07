@@ -32,7 +32,7 @@
 var _ = require("underscore");
 var Activity = require("../lib/activity.js");
 var AppActivity = require("../app/activity.js");
-
+var User = require("../lib/user.js");
 
 var activity_skeleton = {
 	design: {
@@ -64,9 +64,14 @@ exports.activity = {
 		var activity_data = [];
 		activity_data[1] = _.extend({}, activity_skeleton, {_id:'1'});
 		activity_data[1].design = _.clone(activity_skeleton.design);
+		
 		activity_data[2] = _.extend({}, activity_skeleton, {_id:'2'});
 		activity_data[2].design = _.clone(activity_skeleton.design);
 		activity_data[2].design.allowed = {read: ['admin']};
+		
+		activity_data[3] = _.extend({}, activity_skeleton, {_id:'3'});
+		activity_data[3].design = _.clone(activity_skeleton.design);
+		activity_data[3].design.allowed = {read: ['admin', 'creator']};
 		
 		Activity.Model.prototype.sync = Activity.Collection.prototype.sync = function(action, model, options) {
 			if (action != 'read' && !(model instanceof Activity.Model)) throw new Error("Not implemented");
@@ -101,6 +106,7 @@ exports.activity = {
 		 * Loading an activity requiring the 'admin' role
 		 */
 		readControl: {
+			//Admin not permitted to read.
 			asAnon: function(t) {
 				var req = {};
 				var next = function(error) {
@@ -110,8 +116,9 @@ exports.activity = {
 				};
 				AppActivity.loadActivity(req, null, next, "2");
 		    },
+		    //Fred doesn't have needed role
 		    asUnprivileged: function(t) {
-		    	var req = { context: { user: { id: 'fred', roles: ['noob'] } } };
+		    	var req = { context: { user: new User.Model({ id: 'fred', roles: ['noob'] }) } };
 		    	var next = function(error) {
 					t.ok(error, "Read not permitted");
 					t.equal(error.message, "Reading this activity not permitted");
@@ -119,8 +126,9 @@ exports.activity = {
 				};
 				AppActivity.loadActivity(req, null, next, "2");
 		    },
+		    //Bill is an admin
 		    asAdmin: function(t) {
-				var req = { context: { user: { id: 'bill', roles: ['admin', 'alpha', 'omega'] } } };
+				var req = { context: { user: new User.Model({ id: 'bill', roles: ['admin', 'alpha', 'omega'] }) } };
 				var next = function(error) {
 					t.ok(!error, "Loads successfully");
 					t.ok(req.activity, "Injects activity into request");					
@@ -128,6 +136,34 @@ exports.activity = {
 					t.done();
 				};
 				AppActivity.loadActivity(req, null, next, "2");
+			}
+		},
+		
+		/**
+		 * Read uses contextual roles
+		 */
+		readControlWithContext: { 
+			//Bill can read - has one of the ingrained roles
+		    asAdmin: function(t) {
+				var req = { context: { user: new User.Model({ id: 'bill', roles: ['admin', 'alpha', 'omega'] }) } };
+				var next = function(error) {
+					t.ok(!error, "Loads successfully");
+					t.ok(req.activity, "Injects activity into request");					
+					t.equal(req.activity && req.activity.id, 3, "Loads correct activity");
+					t.done();
+				};
+				AppActivity.loadActivity(req, null, next, "3");
+			},
+			//tuser can read - has a contextual role 'creator' on the activity  
+			asCreator: function(t) {
+				var req = { context: { user: new User.Model({ id: 'tuser', roles: ['just', 'some', 'user'] }) } };
+				var next = function(error) {
+					t.ok(!error, "Loads successfully");
+					t.ok(req.activity, "Injects activity into request");					
+					t.equal(req.activity && req.activity.id, 3, "Loads correct activity");
+					t.done();
+				};
+				AppActivity.loadActivity(req, null, next, "3");
 			}
 		}
 	},
