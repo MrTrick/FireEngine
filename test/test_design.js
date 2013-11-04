@@ -27,7 +27,7 @@
  */
 
 var _ = require('underscore');
-var Activity = require("../lib/activity.js");
+var FireEngine = require("../lib/fireengine.js");
 //var Sanitize = require("../lib/sanitizer.js");
 
 /**
@@ -40,7 +40,7 @@ exports.definition = {
 		 * Empty actions not allowed.
 		 */
 		testEmpty: function(t) {
-			var action = new Activity.Action({});
+			var action = new FireEngine.Action({});
 			
 			t.ok( !action.isValid(), "An empty action is invalid");
 			
@@ -55,7 +55,7 @@ exports.definition = {
 		 * Name is set automatically
 		 */
 		testNameless: function(t) {
-			var action = new Activity.Action({
+			var action = new FireEngine.Action({
 				id: "open"
 			});
 			
@@ -68,7 +68,7 @@ exports.definition = {
 		 * Check which values are/aren't valid
 		 */
 		testProperties: function(t) {
-			var action = new Activity.Action({
+			var action = new FireEngine.Action({
 				id: "open"
 			});
 
@@ -91,7 +91,7 @@ exports.definition = {
 		testEmpty: function(t) {
 			t.expect(8);
 			
-			var design = new Activity.Design({});
+			var design = new FireEngine.Design({});
 			t.ok( !design.isValid(), "An empty design is invalid" );
 			
 			var errors = design.validate();
@@ -107,7 +107,7 @@ exports.definition = {
 		 * Test that a simple design is valid
 		 */
 		testSimple: function(t) {
-			var design = new Activity.Design({
+			var design = new FireEngine.Design({
 				id: "testsimple_v1", name: "Test Simple", version: 1,
 				states: ["open"],
 				create: { to: ["open"] },
@@ -121,18 +121,21 @@ exports.definition = {
 		 * Test that design actions are valid
 		 */
 		testActions: function(t) {
-			var design = new Activity.Design({
+			var design = new FireEngine.Design({
 				id: "testsimple_v1", name: "Test Simple", version: 1,
 				states: ["open"],
 				create: { to: ["open"] },
 				actions: [ { id:"nothing" } ]
 			});
+			FireEngine.Design.Collection.all.reset(design);
 
 			var create = design.action('create');
 			t.ok(create.isValid(), "Create action is valid when read from the design.");
 			t.strictEqual(create.design, design, "Create action has reference to original design");
-			t.ok(create.activity instanceof Activity.Model, "Create action has reference to blank activity");
+			t.ok(create.activity instanceof FireEngine.Activity, "Create action has reference to blank activity");
+			t.equal( create.activity.design, design, "Blank activity has reference to design");
 			t.ok(create.activity.isNew(), "Create action's activity not saved yet");
+			
 			t.done();
 		}
 	
@@ -151,22 +154,22 @@ exports.validation = {
 	 */
 	testCommon: function(t) { 
 		var sync = require('../lib/sync_design.js')(__dirname + "/../config.example/designs");
-		Activity.Design.prototype.sync = sync;
-		Activity.Design.Collection.prototype.sync = sync;
+		FireEngine.Design.prototype.sync = sync;
+		FireEngine.Design.Collection.prototype.sync = sync;
 		
 		function checkHandler(handler, msg) {
 			if (!handler) return;
 			t.doesNotThrow(function() { //doesNotThrow won't unfortunately actually catch any syntax errors 
 				//console.log(msg);
-				handler = Activity.coerce(handler);
+				handler = FireEngine.coerce(handler);
 				t.equal(typeof handler, "function");
 			}, msg + " failed to instantiate");
 		}
 		
-		var designs = new Activity.Design.Collection();
+		var designs = new FireEngine.Design.Collection();
 		designs.on('error', function(designs, error) { t.done(error); });
 		designs.fetch({ success: function(designs) {
-			t.equal(designs.length, 7, "Expect 7 designs");
+			t.equal(designs.length, 6, "Expect 6 designs");
 			
 			designs.each(function(design) {
 				//Check built-in validation

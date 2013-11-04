@@ -9,7 +9,11 @@
     "nano": "~3.3.6", 
     "underscore": "~1.4.3",
     "ldapauth": "~2.2.1",
-    "express": "3.*"
+    "express": "*",
+    "ini": "*",
+    "nodemailer": "*",
+    "superagent": "*",
+    "log4js": "*"
   },
   "devDependencies": {
     "nodeunit" : "*",
@@ -21,7 +25,7 @@
   "repository": "",
   "keywords": [
     "workflow",
-    "activity"
+    "activity"  
   ],
   "author": "Patrick Barnes",
   "license": "BSD"

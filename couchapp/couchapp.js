@@ -45,17 +45,37 @@ ddoc.views.by_design = {
 	reduce: '_count'
 };
 
-//All activities (For now, assume that having a 'design' designates a document being an activity)
+//All activities 
 ddoc.views.all = {
-	map: function(doc) { if (doc.design) emit(doc._id, null); },
+	map: function(doc) { 
+		if (!doc.design) return; //Assume that having a 'design' makes a document an activity.
+		emit(doc._id, null); 
+	},
 	reduce: '_count'
 };
 
-//Activities not in a closed state (For now, assume that having a 'design' designates a document being an activity)
+//Activities not in a closed state 
 ddoc.views.active = {
-	map: function(doc) { if (doc.design && doc.state && doc.state.indexOf('closed') == -1) emit(doc._id, null); },
+	map: function(doc) { 
+		if (!doc.design) return; //Assume that having a 'design' makes a document an activity.
+		if (doc.state && doc.state.indexOf('closed') == -1) emit(doc._id, null); 
+	},
 	reduce: '_count'
 };
+
+//Activities by mentioned user
+ddoc.views.by_user = {
+	map: function(doc) { 
+		if (!doc.design) return; //Assume that having a 'design' makes a document an activity.
+
+		var users = {};
+		if (doc.roles) for (var k in doc.roles) for(var i in doc.roles[k]) users[ doc.roles[k][i] ] = true;
+		
+		for(var u in users) emit(u, null);
+	},
+	reduce: '_count'
+};
+
 
 ddoc.validate_doc_update = function (newDoc, oldDoc, userCtx) {   
   if (newDoc._deleted === true && userCtx.roles.indexOf('_admin') === -1) {

@@ -8,7 +8,7 @@ exports.fire_timeout = 5000;
 exports.myexternaldb = "http://localhost:5984/fireengine_testexternal";
 
 var _ = require('underscore');
-var Activity = require('../lib/activity.js');
+var FireEngine = require('../lib/fireengine.js');
 
 //-----------------------------------------------------------------------------
 //Define connections
@@ -25,9 +25,9 @@ exports.sync.design = sync_design( require('fs').realpathSync( CONFIG_PATH + "de
 //How does FireEngine access Users?
 // (For the example config, just use some dummy users in an array)
 var users = [
-    {id:"adummy", display_name:"Andrew Dummy", email_primary: "fireengine.adummy@mindbleach.com", roles: ["admin"]},
-    {id:"bdummy", display_name:"Brian Dummy", email_primary: "fireengine.bdummy@mindbleach.com", roles: ["manager"]},
-    {id:"cdummy", display_name:"Caroline Dummy", email_primary: "fireengine.cdummy@mindbleach.com", roles: []}
+    {id:"adummy", password:"adummy", display_name:"Andrew Dummy", email_primary: "fireengine.adummy@mindbleach.com", roles: ["admin"]},
+    {id:"bdummy", password:"bdummy", display_name:"Brian Dummy", email_primary: "fireengine.bdummy@mindbleach.com", roles: ["manager"]},
+    {id:"cdummy", password:"cdummy", display_name:"Caroline Dummy", email_primary: "fireengine.cdummy@mindbleach.com", roles: []}
 ];
 exports.sync.user = function(method, model, options) {
 	if (method == 'read' && model instanceof Backbone.Model) {
@@ -44,7 +44,7 @@ exports.sync.user = function(method, model, options) {
 //Define session settings and authentication
 exports.session = {
 	server_key: 'SECRETSECRETSECRETSECRETSECRETSECRETSECRETSECRETSECRETSECRETSECRETSECRETSECRET',
-	lifetime: 3600
+	lifetime: 3600*12
 };
 
 exports.auth = {
@@ -55,9 +55,10 @@ exports.auth = {
 		//For the example, just authenticate against the dummy user list
 		var user = _.find(users, function(u) { return u.id == credentials.username; });
 		//(password same as username)
-		if (user && credentials.password == user.id) {
+		if (user && credentials.password == user.password) {
 			options.success(user.id);
 		} else {
+			console.log(credentials);
 			options.error(new Errors.Unauthorized("Incorrect credentials"));
 		}
 	}
@@ -76,6 +77,7 @@ exports.acl_rules = {
 	'/designs/:design' : [],
 	'/designs/:design/fire/create' : [],
 	'/activities' : [],
+	'/activities/view/:view' : [],
 	'/activities/:activity' : [],
 	'/activities/:activity/fire/:action' : []
 };

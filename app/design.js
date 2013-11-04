@@ -29,7 +29,7 @@
 /**
  * Parts of the application concerned with handling design requests
  */
-var Activity = require("../lib/activity.js");
+var FireEngine = require("../lib/fireengine.js");
 var Errors = require("../lib/errors.js");
 var exec = require('child_process').exec;
 
@@ -38,7 +38,7 @@ var exec = require('child_process').exec;
  */
 exports.loadDesign = function(req, res, next, id) {
 	console.log("[Param] Loading design " + id);
-	var design = new Activity.Design({id:id});
+	var design = new FireEngine.Design({id:id});
 	design.fetch({
 		//If fetched successfully, push the design into the request
 		success: function(design) {
@@ -56,7 +56,7 @@ exports.loadDesign = function(req, res, next, id) {
  */
 exports.index = function(req, res, next) {
 	console.log("[Route] Fetching all designs");
-	var designs = new Activity.Design.Collection();
+	var designs = new FireEngine.Design.Collection();
 	designs.fetch({
 		success: function(designs) {
 			console.log("[Route] Sending "+designs.length+" designs");

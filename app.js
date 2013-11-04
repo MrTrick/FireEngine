@@ -37,28 +37,49 @@
  */
 
 //-----------------------------------------------------------------------------
+//Ensure the application knows where it is.
+
+//-----------------------------------------------------------------------------
 //Modules needed by the application
 var fs = require("fs");
 var http = require("http");
 var url = require("url");
 var Backbone = require("backbone");
 
-var Activity = require("./lib/activity.js");
-var User = require("./lib/user.js");
-var Session = require("./lib/session.js");
 //-----------------------------------------------------------------------------
-//Where is everything? Load the site settings
+//Where is everything?
+
+//Where is the application?
+process.chdir(__dirname);
+global.APP_PATH = __dirname;
 
 //Look at the FE_CONFIG_PATH environment variable for the location.
 //By default, look in the 'config' subfolder. Or the 'config.example' subfolder, if 'config' is not defined.
-GLOBAL.CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config/" : "./config.example/");
-var settings = require(CONFIG_PATH + "settings.js");
+global.CONFIG_PATH = process.env.FE_CONFIG_PATH || (fs.existsSync("./config") ? "./config" : "./config.example");
 if (CONFIG_PATH == './config.example/') console.warn("Warning: Using configuration from ./config.example/");
-	
+CONFIG_PATH = require('path').resolve(CONFIG_PATH)+'/'; //Accept both relative and absolute forms
+
+//Set up and configure logging
+var log4js = require('log4js');
+log4js.configure(CONFIG_PATH + 'log4js.json');
+global.log = log4js.getLogger();
+
+//-----------------------------------------------------------------------------
+
+var FireEngine = require("./lib/fireengine.js");
+var User = require("./lib/user.js");
+var Session = require("./lib/session.js");
+
+//-----------------------------------------------------------------------------
+//Load the application settings?
+var settings = require(CONFIG_PATH + "settings.js");
+
 //Have Activities and designs use the correctly configured sync functions 
-Activity.Model.prototype.sync = Activity.Collection.prototype.sync = settings.sync.activity;
-Activity.Design.prototype.sync = Activity.Design.Collection.prototype.sync = settings.sync.design;
+FireEngine.Activity.prototype.sync = FireEngine.Activity.Collection.prototype.sync = settings.sync.activity;
+FireEngine.Design.prototype.sync = FireEngine.Design.Collection.prototype.sync = settings.sync.design;
 User.Model.prototype.sync = settings.sync.user;
+//Load all designs into .all
+FireEngine.Design.Collection.all.fetch({error: function() { throw new Error("Could not load designs");}});
 
 //Load the context builder
 var buildContext = require(CONFIG_PATH + "context.js");
@@ -71,14 +92,14 @@ var app_auth = require('./app/auth.js');
 var app_design = require('./app/design.js');
 var app_activity = require('./app/activity.js');
 
+app.enable('trust proxy');
 app.set('settings', settings);
 app.set('session', Session(settings.session));
 
 //Configure global middleware
 var checkAcls = require('./lib/allowed.js').systemAccess(settings.acl_rules);
 
-app.use(express.logger({immediate:true}));
-app.use(express.bodyParser());
+//Set up CORS compliance; access control, and responding to OPTIONS requests
 app.use(function(req, res, next) {
 	res.set({ //Set the globally-used headers
 		'Access-Control-Allow-Origin' : '*',
@@ -88,10 +109,20 @@ app.use(function(req, res, next) {
 	});
 	next();
 });
-app.use(buildContext);
+app.use(function(req, res, next) { 
+	if (req.method == 'OPTIONS') res.send(200, {}); //Give happy empty responses to any OPTIONS request 
+	else next(); 
+});
 
-//Give happy empty responses to any OPTIONS request for CORS
-app.options('*', function(req, res, next) { res.send(200, {}); });
+//Configure logging - after the OPTIONS handling
+var log_stream = { write: function(msg) { log.info(msg.trimRight()); } };
+app.use(express.logger({immediate:true, format:'short', stream:log_stream})); //Before 
+app.use(express.logger({format:'short', stream:log_stream})); //After
+
+//Other server configuration
+app.use(express.json());       //Parse requests with json-encoded bodies
+app.use(express.urlencoded()); //Parse requests with url-encoded bodies
+app.use(buildContext);
 
 //Define site routes
 app.post('/auth/login', app_auth.login);
@@ -120,14 +151,35 @@ app.get('/', function(req, res, next) {
 		"POST /designs/:design/fire/create" : "Create a new activity of that design with the given POST data, and return the new activity"
 	}});
 });
+app.get('/fireengine.js', function(req, res, next) {
+	//Transparently concatenate 'fireengine.js' with the components it depends on
+	var files = ['./lib/fireengine.js', './lib/allowed.js', './lib/errors.js'];
+	var out = '';
+	var done = _.after(files.length, function done() { res.type("application/javascript").send(out); });
+	_.each(files, function(filename) { fs.readFile(filename, function(err, data) { 
+		if (err) return next(err);
+		out += data;
+		done();
+	}); });
+});
 
-//Handle errors
+//Handle client errors - not as serious 
 app.use(function(error, req, res, next) {
-	console.error("Error: " + error);
-	res.send({error: error}, error.status_code || 500);
+	if (error.status && error.status >= 400 && error.status < 500) {
+		console[error.status===401?'info':'warn']("Client error: "+error.toString()+" ( "+error.status+" )");
+		
+		res.send(error.status || 500, {error: error});
+	} else next(error); 
+});
+
+//Handle other errors
+app.use(function(error, req, res, next) {
+	//Log a detailed error message
+	console.error("Error: "+error.toString()+" ( "+error.status+" )");
+	if (error.inner) console.error("  Inner:", error.inner.toString);
 	if (error.stack) console.error(error.stack);
-	console.error(error, error.status_code, "for", req.method, req.url);
-	if (error.inner) console.error("Inner:", error.inner);	
+	
+	res.send(error.status || 500, {error: error});	
 });
 
 app.listen(8000);

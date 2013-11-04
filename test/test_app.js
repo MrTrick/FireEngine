@@ -30,20 +30,20 @@
  * Test aspects of the server application 
  */
 var _ = require("underscore");
-var Activity = require("../lib/activity.js");
+var FireEngine = require("../lib/fireengine.js");
 var AppActivity = require("../app/activity.js");
 var User = require("../lib/user.js");
 var Errors = require("../lib/errors.js");
 
+var design_skeleton = {
+	name: 'Test Design',
+	version: 1,
+	states: ['opened'],
+	create: { to: "opened" },
+	actions: [ { id: 'nop' } ]
+};
+
 var activity_skeleton = {
-	design: {
-		id: 'testdesign_v1',
-		name: 'Test Design',
-		version: 1,
-		states: ['opened'],
-		create: { to: "opened" },
-		actions: [ { id: 'nop' } ]
-	},
 	state: ['opened'],
 	data: {foo:'foo'},
 	roles: {
@@ -62,22 +62,22 @@ var activity_skeleton = {
 
 exports.activity = {
 	setUp: function(ready) {
+		var designs = [
+		    _.extend({}, design_skeleton, {id: 'design1_v1'}),
+		    _.extend({}, design_skeleton, {id: 'design2_v1', allowed: {read: ['admin']}}),
+		    _.extend({}, design_skeleton, {id: 'design3_v1', allowed: {read: ['admin', 'creator']}})
+		];
+		FireEngine.Design.Collection.all = new FireEngine.Design.Collection(designs);
+		
 		var activity_data = [];
-		activity_data[1] = _.extend({}, activity_skeleton, {_id:'1'});
-		activity_data[1].design = _.clone(activity_skeleton.design);
+		activity_data[1] = _.extend({}, activity_skeleton, {id:'1', design:'design1_v1'});
+		activity_data[2] = _.extend({}, activity_skeleton, {id:'2', design:'design2_v1'});
+		activity_data[3] = _.extend({}, activity_skeleton, {id:'3', design:'design3_v1'});
 		
-		activity_data[2] = _.extend({}, activity_skeleton, {_id:'2'});
-		activity_data[2].design = _.clone(activity_skeleton.design);
-		activity_data[2].design.allowed = {read: ['admin']};
-		
-		activity_data[3] = _.extend({}, activity_skeleton, {_id:'3'});
-		activity_data[3].design = _.clone(activity_skeleton.design);
-		activity_data[3].design.allowed = {read: ['admin', 'creator']};
-		
-		Activity.Model.prototype.sync = Activity.Collection.prototype.sync = function(action, model, options) {
-			if (action != 'read' && !(model instanceof Activity.Model)) throw new Error("Not implemented");
+		FireEngine.Activity.prototype.sync = FireEngine.Activity.Collection.prototype.sync = function(action, model, options) {
+			if (action != 'read' && !(model instanceof FireEngine.Activity)) throw new Error("Not implemented");
 			process.nextTick(function() {
-				data = activity_data[parseInt(model.id)]; 
+				var data = activity_data[parseInt(model.id)]; 
 				if (data) options.success(data);
 				else options.error(new Errors.NotFound());
 			});
@@ -94,6 +94,7 @@ exports.activity = {
 		 * Loading an activity with no read restriction
 		 */
 		simple: function(t) {
+			t.expect(3);
 			var req = {}; //No user defined
 			var next = function(error) {
 				t.ok(!error, "Loads successfully");
@@ -182,7 +183,7 @@ exports.activity = {
 			AppActivity.read(req, {
 				send: function(data) {
 					t.ok(data);
-					t.equal(data._id, "1");
+					t.equal(data.id, "1");
 					t.done();
 				}
 			}, null);

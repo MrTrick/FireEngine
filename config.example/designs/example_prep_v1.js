@@ -3,24 +3,48 @@
  */
 if (typeof exports === "undefined") throw "Unexpected context - expected to be called from node.js";
 require("underscore").extend(exports, {
-	"id":"test_b_v1",
-	"name": "Prep Test (B)",
+	"id":"example_prep_v1",
+	"name": "Example: Prepare Handlers",
 	"version": 1,
-	"states": ["foo"],
-	//Create is a special kind of action. It must be defined, and no actions can have the id 'create'. 
+	"states": ["open", "closed"],
+	
 	"create": {
-		"to": ["foo"],
+		"to": ["open"],
 		"prepare": function() {
-			bootbox.prompt('Create! But first... Tell me something.', function(result) { 
-    			if (!result) cancel('User cancelled');
-    			else complete({created_with_data:result}); 
-    		}); 
+			return new (Marionette.ItemView.extend({
+				template: _.template(
+					'<form><fieldset>'+
+					'  <legend>Justification</legend>'+
+					'  <textarea name="justification" required></textarea>'+
+					'  <span class="help-block">Why do you want to create this action?</span>'+
+					'  <button type="submit" class="btn">Submit</button>'+
+					'  <button id="cancel" class="btn">Cancel</button>'+
+				    '</fieldset></form>'
+				),
+				events: {
+					'click #cancel' : function() { cancel("Create cancelled."); },
+			        'submit' : 'submit'
+				},
+				submit: function(e) {
+					e.preventDefault();
+					//Get the form value
+					var justification = this.$('textarea[name=justification]').val();
+					
+					//Signal the completion of the prep, passing back those inputs. 
+					var inputs = {justification:justification};
+					complete( inputs );
+				}
+			}));
 		},
-		"fire" : function() {
-			complete(); //
+		//A corresponding fire handler is needed to deal with any input data		
+		"fire": function() {
+			if (!inputs.justification) {
+				error("Create justification is required");
+			} else { 
+				data.justification = inputs.justification;
+				complete();
+			}
 		}
-//			complete(inputs); //Store any given inputs.
-//		}
 	},
 	"actions": [
 	    {

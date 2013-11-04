@@ -5,7 +5,7 @@ var _ = require('underscore');
 var Backbone = require('backbone');
 var sync_couch = require('../lib/sync_couch.js');
 var settings = require('./settings.js');
-var Activity = require('../lib/activity.js');
+var FireEngine = require('../lib/fireengine.js');
 var User = require('../lib/user.js');
 
 var base_context = {};
@@ -15,7 +15,7 @@ var base_context = {};
 base_context._ = _;
 base_context.Backbone = Backbone;
 base_context.JSV = require('JSV').JSV.createEnvironment();
-base_context.Activity = Activity;
+base_context.FireEngine = FireEngine;
 base_context.User = User;
 
 //------------------------------------------------------------------
@@ -52,31 +52,26 @@ base_context.MyExternal = MyExternal;
 //------------------------------------------------------------------
 //Middleware to load the context into the request
 function buildContext(req, res, next) {
-	var user_id;
+	var identity = false;
 
 	//Load the context
 	req.context = _.extend({}, base_context);
 
-
 	//Try to load the identity from the session, and load the user
-	try {
-		user_id = req.app.get('session').test(req);
-	} catch(error) {
-		next(error);
-	}
+	try { identity = req.app.get('session').test(req); } 
+	catch(error) { return next(error); }
 	
 	//TODO: TO ASSIST DEBUGGING ONLY, DO NOT USE FOR REAL context.js!
-	// (If the req isn't signed and the 'user_id=USER_ID' query value is given, use it.)	
-	if (!user_id && req.query.user_id) user_id = req.query.user_id;
-	//      TO ASSIST DEBUGGING ONLY, DO NOT USE FOR REAL context.js!
-
+	// (If the req isn't signed and the 'identity=USER_ID' query value is given, use it.)	
+	//if (!identity && req.query.identity) identity = req.query.identity;
+	//TODO: TO ASSIST DEBUGGING ONLY, DO NOT USE FOR REAL context.js!	
 	
-	console.log("[Context] identity:", user_id);
-	req.context.user_id = user_id;
+	if (identity) console.log("[Context] identity:", identity);
+	req.context.identity = identity;
 	
 	//Load the user if identity known
-	if (user_id) {
-		var user = req.user = req.context.user = new User.Model({id:user_id});
+	if (identity) {
+		var user = req.user = req.context.user = new User.Model({id:identity});
 		user.fetch({
 			success: function() { next(); },
 			error: function(model, e) { next(e); }

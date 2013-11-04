@@ -29,7 +29,7 @@
 /**
  * Parts of the application concerned with handling activity requests
  */
-var Activity = require("../lib/activity.js");
+var FireEngine = require("../lib/fireengine.js");
 var Errors = require("../lib/errors.js");
 
 /**
@@ -37,7 +37,7 @@ var Errors = require("../lib/errors.js");
  */
 exports.loadActivity = function(req, res, next, id) {
 	console.log("[Param] Loading activity " + id);
-	var activity = new Activity.Model({_id:id});
+	var activity = new FireEngine.Activity({id:id});
 	activity.fetch({
 		//If fetched successfully, push the activity into the request
 		success: function(activity) {
@@ -70,23 +70,30 @@ exports.index = function(req, res, next) {
 exports.view = function(req, res, next) {
 	var view = req.params.view;
 	console.log("[Route] Fetching activities in view '"+view+"'");
-	var activities = new Activity.Collection();
+	var activities = new FireEngine.Activity.Collection();
 	
-	//TODO: Use req.query to implement querying.
-	//TODO: Set default query behaviour, like return only activities that don't have state 'closed'
+	//TODO: Use req.query to implement proper a querying API.
+	var params = {};
+	if (req.query.key) params.key = req.query.key;
+	
+	//Special rule - the "mine" view goes to "by_user", key=req.user.id
+	if (view === "mine") {
+		view = "by_user";
+		params.key = req.user.id;
+	}
 	
 	activities.fetch({
+		validate: true,
 		view: { 
 			design: 'fireengine',
 			name: view //Fetch from the given view. If the view name is incorrect couchdb will reject it
 		},
+		params: params,
 		success: function(activities) {
 			console.log("[Route] Read "+activities.length+" activities. Filtering...");
 			//Remove any activities that are not allowed to be read
 			activities.set( 
-				activities.filter(function(activity) { 
-					return activity.allowed('read', req.context); 
-				})
+				activities.filter(function(activity) { return activity.allowed('read', req.context); })
 			);
 			console.log("[Route] Sending "+activities.length+" activities.");
 			res.send(activities.toJSON()); 

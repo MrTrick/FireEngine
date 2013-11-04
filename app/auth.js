@@ -30,7 +30,7 @@
  * Parts of the application concerned with login and logout
  */
 
-var Activity = require("../lib/activity.js");
+var FireEngine = require("../lib/fireengine.js");
 var Errors = require("../lib/errors.js");
 
 /**
