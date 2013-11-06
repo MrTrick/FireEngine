@@ -182,6 +182,6 @@ app.use(function(error, req, res, next) {
 	res.send(error.status || 500, {error: error});	
 });
 
-app.listen(8000);
 //-----------------------------------------------------------------------------
+app.listen(settings.serverport);
 console.log("Server listening on port "+settings.serverport+"...");

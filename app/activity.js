@@ -128,11 +128,11 @@ exports.fire = function(req, res, next) {
 	if (!action.allowed(req.context)) return next(new Errors.Forbidden("Action '"+action_id+"' forbidden"));
 		
 	//Fire the given action - if successful output the updated activity.
-	console.log("Firing: Logging", req.body);
+	console.log("[Action:Fire] Firing. Inputs:", req.body);
 	action.fire(req.body, req.context, {
 		timeout: req.app.get('settings').fire_timeout, 
 		success: function() {
-			console.log("[Route] Fired "+action_id+". New state:", activity.get('state'));
+			console.log("[Action:Fire] Finished firing '"+action_id+"'. New state:", activity.get('state'));
 			res.send(activity.toJSON());
 		},
 		error: function(activity, error) { next(error); }

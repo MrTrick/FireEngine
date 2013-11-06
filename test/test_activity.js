@@ -91,7 +91,7 @@ exports.functions = {
 			name: 'Test Design',
 			version: 1,
 			states: ['opened', 'closed'],
-			create: { to: "opened" },
+			create: { to: ["opened"] },
 			allowed: {
 				//Filled later...
 			},
@@ -267,4 +267,254 @@ exports.utilities = {
 		t.done();
 	}
 	
+};
+
+function Handler() { 
+	function h() { h.calls++; h.args = Array.prototype.slice.call(arguments); };
+	(h.reset = function() { h.calls = 0; })();
+	return h;
+}
+
+/** 
+ * Test the Activity firing mechanism
+ */
+exports.firing = { 
+	setUp: function(ready) {
+		var self = this;
+		
+		//Utilities
+		//////////////
+		
+		//Create and set into Activity a sync function that just records the arguments and calls options.success.
+		self.syncResponse = null;
+		FireEngine.Activity.prototype.sync = function(method, model, options) {
+			self.syncMethod = method;
+			self.syncAttrs = model.toJSON(options);
+			options.success( _.defaults(self.syncResponse || self.syncAttrs, { id: "1234567890" }) );
+		};
+
+		//Default error behaviour;
+		var onError = this.onError = function(activity, error, options) { options.t.ok(false, "ERROR: " + error); options.t.done(); };
+		
+		//Synchronously create and return an activity from a design - adds FIVE assertions
+		this.syncCreateActivity = function(design, inputs, context, t) {
+			t.ok( design instanceof FireEngine.Design && design.isValid(), "Checking "+design.id+" exists and is valid."+JSON.stringify(design.validationError));
+			var action = design.action('create');
+			t.ok( action instanceof FireEngine.Action && action.isValid(), "Checking the create action is valid");
+			var activity = action.activity;
+			t.ok( activity instanceof FireEngine.Activity && activity.isNew(), "Checking "+design.id+":create references a new activity" );
+			var fired = false;
+			action.fire(inputs, context, {t:t, error: onError, success: function() { fired = true; } });
+			t.ok(fired, "Firing completed synchronously");
+			t.ok(activity.id, "Created activity");	
+			return activity;
+		};
+		
+		ready();
+	},
+	
+	/**
+	 * Create and fire a simple activity
+	 * @param t
+	 */
+	simple: function(t) {
+		var design = new FireEngine.Design({
+			id: 'test_simple_v1',
+			name: "Simple Two-State Design",
+			version: 1,
+			states: ['opened', 'closed'],
+			create: { to: ["opened"] },
+			actions: [
+			    { id: 'close', from: ['opened'], to: ['closed'] },
+			    { id: 'open', from: ['closed'], to: ['open'] },
+			]
+		});
+		FireEngine.Design.Collection.all.add(design);
+		
+		var inputs = {}, context = {user:{id:'test_user'}};
+
+		//Create the activity
+		var activity = this.syncCreateActivity(design, inputs, context, t);
+		
+		//Check that the activity was created 
+		//and that the activity attributes are all set as expected
+		t.equal(this.syncMethod, 'create');
+
+		t.equal(activity.id, "1234567890", "Id set by sync");
+		t.deepEqual(activity.get('state'), ['opened'], "Start state set");
+		t.deepEqual(activity.get('roles'), {creator:['test_user'], actor:['test_user']}, "Roles automatically populated");
+		t.equal(activity.get('history').length, 1);
+		t.equal(activity.get('history')[0].message, 'Created');
+		t.equal(activity.get('history')[0].action, 'create');
+		t.equal(activity.get('history')[0].who, 'test_user');
+		t.ok( !activity.get('data'), "No data yet");
+		t.ok( !activity.get('links'), "No links yet");
+		t.ok( activity.isValid(), "Valid!" );
+		
+		//Now that the activity is created, let's fire an action
+		var action = activity.action('close');
+		t.ok(action instanceof FireEngine.Action && action.isValid(), "Close action is valid");
+		
+		//FIRE THE ACTION!
+		var fired = false;
+		action.fire({}, {user:{id:"other_test_user"}}, {t: t, error: this.onError, success: function() { fired = true; }});
+		t.ok(fired, "Action fired successfully. (and synchronously)");
+		
+		t.equal(this.syncMethod, 'update');
+				
+		//What has changed?
+		t.deepEqual(activity.get('state'), ['closed'], "Activity is closed");
+		t.deepEqual(activity.get('roles'), {creator:['test_user'], actor:['test_user','other_test_user']}, "Roles automatically populated");
+		t.equal(activity.get('history').length, 2);
+
+		t.expect(17+5);
+		t.done();
+	},
+	
+	/**
+	 * Test from/to/notfrom state handling
+	 * @param t
+	 */
+	state_handling: function(t) {
+		var design = new FireEngine.Design({
+			id: 'test_state_v1',
+			name: "Design with lots of state transitions",
+			version: 1,
+			states: ['opened', 'foo', 'bar', 'baz', 'x', 'y', 'z', 'closed'],
+			create: { to: ["opened", "foo"] },
+			
+			actions: [
+			    { id: 'action1', from: ['opened'], to: ['bar'] },
+			    { id: 'action2', from: ['opened', 'foo'], to: ['bar'] },
+			    { id: 'action3', from: ['foo'], to: ['bar', 'baz'] },
+			    { id: 'action4', notfrom: ['opened']},
+			    { id: 'action5', notfrom: ['opened', 'foo']},
+			    { id: 'action6', notfrom: ['foo']},
+			    
+			    { id: 'nothing' },
+			    { id: 'close', from: ['opened'], to: ['closed'] },
+			]
+		});
+		FireEngine.Design.Collection.all.add(design);
+		
+		var inputs = {}, context = {user:{id:'test_user'}};
+		//Create the activity
+		var activity = this.syncCreateActivity(design, inputs, context, t);
+		t.deepEqual( activity.get('state'), ['opened', 'foo'], "Multiple initial states" );
+		
+		//Check which actions are available
+		var available_actions = activity.actions().allowed(context);
+		t.deepEqual( available_actions.pluck('id'), ['action1', 'action2', 'action3', 'nothing', 'close'], "Actions 1,2,3 should be available, not 4,5,6.");
+				
+		//Try some of the actions
+		activity.action('action1').fire(inputs, context, {t: t, error: this.onError});
+		t.deepEqual( activity.get('state'), ['foo', 'bar']);
+		activity.set('state', ['opened', 'foo']); //re-set state
+		activity.action('action2').fire(inputs, context, {t: t, error: this.onError});
+		t.deepEqual( activity.get('state'), ['bar']);
+		activity.set('state', ['opened', 'foo']); //re-set state
+		activity.action('action3').fire(inputs, context, {t: t, error: this.onError});
+		t.deepEqual( activity.get('state'), ['opened', 'bar', 'baz']);
+		activity.set('state', ['opened', 'foo']); //re-set state
+		activity.action('nothing').fire(inputs, context, {t: t, error: this.onError});
+		t.deepEqual( activity.get('state'), ['opened', 'foo']);
+		
+		t.expect(6+5);
+		t.done();
+	},
+	
+	/**
+	 * Fire an activity that sets data
+	 * @param t
+	 */
+	setdata: function(t) {
+		//Data-setting design
+		var design = new FireEngine.Design({
+			id: 'test_setdata_v1',
+			name: "Data-setting Design",
+			version: 1,
+			states: ['opened'],
+			create: { to: ["opened"] },
+			actions: [
+			    //setdata_output: Sets data through the output mechanism 
+			    { id: 'setdata_output', fire: function() { this.complete({ data: {foo:"output"} }); } },
+			    //setdata_direct: Sets data on the activity directly
+			    { id: 'setdata_direct', fire: function() { this.activity.set('data', {foo:"direct"}); this.complete(); } },
+			    //setdata_modify: Modifies the data object already on the activity (by reference)
+			    //TODO: Is this supported behaviour?
+			    { id: 'setdata_modify', fire: function() { 
+			    	if (this.activity.get('data')) this.activity.get('data').modified = true;  
+			    	this.complete(); 
+			    }}
+			]
+		});
+		FireEngine.Design.Collection.all.add(design);
+		
+		var inputs = {}, context = {user:{id:'test_user'}};
+
+		//Create the activity
+		var activity = this.syncCreateActivity(design, inputs, context, t);
+		t.equal( activity.get('data'), null, "No data, initially.");
+		
+		//Fire setdata_output - expect the data attribute to be set.
+		var action = activity.action('setdata_output');
+		action.fire(inputs, context, {
+			t: t, error: this.onError,
+			success: function(activity) { 
+				t.deepEqual( activity.get('data'), { foo: "output" }, "Data set from fire handler's outputs");
+			}
+		});	
+		
+		//Fire setdata_direct - expect the data attribute to be set (again).
+		var action = activity.action('setdata_direct');
+		action.fire(inputs, context, {
+			t: t, error: this.onError,
+			success: function(activity) { 
+				t.deepEqual( activity.get('data'), { foo: "direct" }, "Data set on Activity from within fire handler");
+			}
+		});
+		
+		//Fire setdata_modify - expect the data attribute to be altered...
+		var action = activity.action('setdata_modify');
+		action.fire(inputs, context, {
+			t: t, error: this.onError,
+			success: function(activity) { 
+				t.deepEqual( activity.get('data'), { foo: "direct", modified: true }, "Data modified");
+			}
+		});		
+		
+		t.expect(4+5);
+		t.done();
+	},
+	
+	/*
+	choosestate_fire: function(t) {
+		
+	TODO: Test more aspects of firing actions
+	
+	
+	//Design that uses a fire handler to decide which state to end up in.
+	var design_choosestate = this.design.statechooser = new FireEngine.Design({
+		id: 'test_choosestate_v1',
+		name: "Choose State",
+		version: 1,
+		states: ['opened', 'yes', 'no'],
+		create: { to: ['opened'] },
+		actions: [
+		    //decide: Goes from 'opened' to one of the given 'to' states
+		    { id: 'decide', from: ['opened'], to: ['yes', 'no'], 
+		    	
+		    	fire: function() {
+		    	if (!this.inputs || !this.inputs.q) return this.error("Expected the 'q' input to be set.");
+		    	
+		    	//if ()
+		    	
+		    }}
+		         
+		]
+	});
+			FireEngine.Design.Collection.all.add(design);
+
+		t.done();
+	}*/
 };
